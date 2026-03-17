@@ -111,8 +111,9 @@ class ApiFacturxController extends AbstractController
         }
 
         // ── N° TVA intracommunautaire fournisseur ─────────────────────────
-        if (preg_match('/TVA\s+Intracommunautaire\s+([A-Z]{2}[\d]+)/u', $text, $m)) {
-            $result['fournisseur']['numeroTva'] = trim($m[1]);
+        // L'espace entre le code pays (ex: FR) et les chiffres est optionnel dans les PDF extraits
+        if (preg_match('/TVA\s+Intracommunautaire\s+([A-Z]{2})\s*([\d]+)/u', $text, $m)) {
+            $result['fournisseur']['numeroTva'] = $m[1] . $m[2];
             $detected[] = 'fournisseur.tva';
         }
 
