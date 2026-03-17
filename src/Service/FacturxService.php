@@ -93,7 +93,6 @@ class FacturxService
 
             $settlementLine = $dom->createElement('ram:SpecifiedLineTradeSettlement');
             $tax = $dom->createElement('ram:ApplicableTradeTax');
-            $tax->appendChild($dom->createElement('ram:CalculatedAmount', $ligne->getMontantHt() * $ligne->getTauxTva()/100));
             $tax->appendChild($dom->createElement('ram:TypeCode', 'VAT'));
             $tax->appendChild($dom->createElement('ram:CategoryCode', 'S'));
             $tax->appendChild($dom->createElement('ram:RateApplicablePercent', number_format($ligne->getTauxTva(), 2, '.', '')));
@@ -113,7 +112,18 @@ class FacturxService
         // Seller
         $seller = $dom->createElement('ram:SellerTradeParty');
         $fournisseur = $facture->getFournisseur();
+        // Ordre XSD CII : Name → SpecifiedLegalOrganization → PostalTradeAddress → SpecifiedTaxRegistration
         $seller->appendChild($dom->createElement('ram:Name', $fournisseur->getNom()));
+
+        // SIRET → SpecifiedLegalOrganization (ISO 6523 schemeID 0009 = SIRET) — doit précéder l'adresse
+        if ($fournisseur->getSiret()) {
+            $legalOrg = $dom->createElement('ram:SpecifiedLegalOrganization');
+            $legalId  = $dom->createElement('ram:ID', $fournisseur->getSiret());
+            $legalId->setAttribute('schemeID', '0009');
+            $legalOrg->appendChild($legalId);
+            $seller->appendChild($legalOrg);
+        }
+
         $sellerAddr = $dom->createElement('ram:PostalTradeAddress');
         if ($fournisseur->getCodePostal()) $sellerAddr->appendChild($dom->createElement('ram:PostcodeCode', $fournisseur->getCodePostal()));
         if ($fournisseur->getAdresse()) $sellerAddr->appendChild($dom->createElement('ram:LineOne', $fournisseur->getAdresse()));
@@ -121,6 +131,7 @@ class FacturxService
         $sellerAddr->appendChild($dom->createElement('ram:CountryID', $fournisseur->getCodePays() ?: 'FR'));
         $seller->appendChild($sellerAddr);
 
+        // BT-31 : N° TVA intracommunautaire (schemeID='VA')
         if ($fournisseur->getNumeroTva()) {
             $taxReg = $dom->createElement('ram:SpecifiedTaxRegistration');
             $id = $dom->createElement('ram:ID', $fournisseur->getNumeroTva());
@@ -128,20 +139,19 @@ class FacturxService
             $taxReg->appendChild($id);
             $seller->appendChild($taxReg);
         }
-        // if ($fournisseur->getSiren()) {
-        //     $taxReg2 = $dom->createElement('ram:SpecifiedTaxRegistration');
-        //     $id2 = $dom->createElement('ram:ID', $fournisseur->getSiren());
-        //     $id2->setAttribute('schemeID', 'FC');
-        //     $taxReg2->appendChild($id2);
-        //     $seller->appendChild($taxReg2);
-        // }
-        if ($fournisseur->getSiret()) {
-            $taxReg3 = $dom->createElement('ram:SpecifiedTaxRegistration');
-            $id3 = $dom->createElement('ram:ID', $fournisseur->getSiret());
-            $id3->setAttribute('schemeID', 'SIRET');
-            $taxReg3->appendChild($id3);
-            $seller->appendChild($taxReg3);
+
+        // BT-32 : SIREN (schemeID='FC') — satisfait BR-S-02 même sans N° TVA
+        // On dérive le SIREN des 9 premiers chiffres du SIRET si non renseigné séparément
+        $siren = $fournisseur->getSiren()
+            ?: ($fournisseur->getSiret() ? substr(preg_replace('/\D/', '', $fournisseur->getSiret()), 0, 9) : null);
+        if ($siren) {
+            $taxReg2 = $dom->createElement('ram:SpecifiedTaxRegistration');
+            $id2 = $dom->createElement('ram:ID', $siren);
+            $id2->setAttribute('schemeID', 'FC');
+            $taxReg2->appendChild($id2);
+            $seller->appendChild($taxReg2);
         }
+
         $agreement->appendChild($seller);
 
         // Buyer
@@ -158,17 +168,19 @@ class FacturxService
 
         $tradeTransaction->appendChild($agreement);
 
-        // === (3) Ensuite la livraison ===
-        $delivery = $dom->createElement('ram:ApplicableHeaderTradeDelivery');
-        if ($facture->getDateLivraison()) {
-            $deliveryDate = $dom->createElement('ram:ActualDeliverySupplyChainEvent');
-            $occ = $dom->createElement('ram:OccurrenceDateTime');
-            $occDate = $dom->createElement('udt:DateTimeString', $facture->getDateLivraison()->format('Ymd'));
-            $occDate->setAttribute('format', '102');
-            $occ->appendChild($occDate);
-            $deliveryDate->appendChild($occ);
-            $delivery->appendChild($deliveryDate);
-        }
+        // === (3) Livraison — toujours rempli (PEPPOL-R008 interdit les éléments vides)
+        //         Si aucune date de livraison, on utilise la date de facture (pratique standard)
+        $delivery         = $dom->createElement('ram:ApplicableHeaderTradeDelivery');
+        $effectiveDelivery = $facture->getDateLivraison() instanceof \DateTimeInterface
+            ? $facture->getDateLivraison()
+            : $facture->getDateFacture();
+        $deliveryEvent = $dom->createElement('ram:ActualDeliverySupplyChainEvent');
+        $occ           = $dom->createElement('ram:OccurrenceDateTime');
+        $occDate       = $dom->createElement('udt:DateTimeString', $effectiveDelivery->format('Ymd'));
+        $occDate->setAttribute('format', '102');
+        $occ->appendChild($occDate);
+        $deliveryEvent->appendChild($occ);
+        $delivery->appendChild($deliveryEvent);
         $tradeTransaction->appendChild($delivery);
 
 
@@ -241,9 +253,7 @@ class FacturxService
             $totalTax += $calc;
 
             $taxNode = $dom->createElement('ram:ApplicableTradeTax');
-            $calcAmount = $dom->createElement('ram:CalculatedAmount', number_format($calc, 2, '.', ''));
-            $calcAmount->setAttribute('currencyID', $devise);
-            $taxNode->appendChild($calcAmount);
+            $taxNode->appendChild($dom->createElement('ram:CalculatedAmount', number_format($calc, 2, '.', '')));
             $taxNode->appendChild($dom->createElement('ram:TypeCode', 'VAT'));
             $taxNode->appendChild($dom->createElement('ram:BasisAmount', number_format($base, 2, '.', '')));
             $taxNode->appendChild($dom->createElement('ram:CategoryCode', 'S'));
@@ -252,14 +262,17 @@ class FacturxService
         }
 
         // === Conditions de paiement ===
-        $terms = $dom->createElement('ram:SpecifiedTradePaymentTerms');
-        $dueDate = $facture->getDateEcheance() ?? "30 jours";
-        $dueDateNode = $dom->createElement('ram:DueDateDateTime');
-        $dateString = $dom->createElement('udt:DateTimeString', $dueDate->format('Ymd'));
-        $dateString->setAttribute('format', '102');
-        $dueDateNode->appendChild($dateString);
-        $terms->appendChild($dueDateNode);
-        // $terms->appendChild($dom->createElement('ram:Description', 'Paiement à 30 jours fin de mois'));
+        $terms   = $dom->createElement('ram:SpecifiedTradePaymentTerms');
+        $dueDate = $facture->getDateEcheance();
+        if ($dueDate instanceof \DateTimeInterface) {
+            $dueDateNode = $dom->createElement('ram:DueDateDateTime');
+            $dateString  = $dom->createElement('udt:DateTimeString', $dueDate->format('Ymd'));
+            $dateString->setAttribute('format', '102');
+            $dueDateNode->appendChild($dateString);
+            $terms->appendChild($dueDateNode);
+        } else {
+            $terms->appendChild($dom->createElement('ram:Description', 'Paiement à 30 jours'));
+        }
         $settlement->appendChild($terms);
 
         // === Totaux ===
@@ -278,20 +291,26 @@ class FacturxService
         $taxTotal = round($totalTax, 2);
         $ttc = round($taxBasis + $taxTotal, 2);
 
+        // Ordre XSD strict : LineTotalAmount → ChargeTotalAmount → AllowanceTotalAmount
+        //                  → TaxBasisTotalAmount → TaxTotalAmount → GrandTotalAmount → DuePayableAmount
+        // @currencyID requis uniquement sur TaxTotalAmount (EN16931 §6.4)
         $monetary = $dom->createElement('ram:SpecifiedTradeSettlementHeaderMonetarySummation');
-        $elements = [
-            'LineTotalAmount' => $totalHT,
-            'ChargeTotalAmount' => $totalCharge,
-            'AllowanceTotalAmount' => $totalAllow,
+        foreach ([
+            'LineTotalAmount'     => $totalHT,
+            'ChargeTotalAmount'   => $totalCharge,
+            'AllowanceTotalAmount'=> $totalAllow,
             'TaxBasisTotalAmount' => $taxBasis,
-            'TaxTotalAmount' => $taxTotal,
+        ] as $tag => $value) {
+            $monetary->appendChild($dom->createElement('ram:' . $tag, number_format($value, 2, '.', '')));
+        }
+        $taxTotalNode = $dom->createElement('ram:TaxTotalAmount', number_format($taxTotal, 2, '.', ''));
+        $taxTotalNode->setAttribute('currencyID', $devise);
+        $monetary->appendChild($taxTotalNode);
+        foreach ([
             'GrandTotalAmount' => $ttc,
             'DuePayableAmount' => $ttc,
-        ];
-        foreach ($elements as $tag => $value) {
-            $node = $dom->createElement('ram:' . $tag, number_format($value, 2, '.', ''));
-            $node->setAttribute('currencyID', $devise);
-            $monetary->appendChild($node);
+        ] as $tag => $value) {
+            $monetary->appendChild($dom->createElement('ram:' . $tag, number_format($value, 2, '.', '')));
         }
         $settlement->appendChild($monetary);
 
@@ -312,6 +331,30 @@ class FacturxService
         return $fileName;
     }
     
+    /**
+     * Embarque le XML Factur-X dans un PDF existant fourni en contenu binaire.
+     * Aucune persistance en base — usage purement API/stateless.
+     *
+     * @param string  $pdfContent Contenu binaire du PDF source
+     * @param Facture $facture    Entité facture construite en mémoire
+     * @return string             Contenu binaire du PDF Factur-X résultant
+     */
+    public function embedXmlInExistingPdf(string $pdfContent, Facture $facture): string
+    {
+        $xmlFile = $this->buildXml($facture);
+        $xmlContent = file_get_contents($xmlFile);
+
+        $writer = new Writer();
+        return $writer->generate(
+            $pdfContent,
+            $xmlContent,
+            ProfileHandler::PROFILE_FACTURX_EN16931,
+            true,
+            [],
+            true
+        );
+    }
+
     /**
      * Génère le PDF avec le XML Factur-X embarqué.
      */

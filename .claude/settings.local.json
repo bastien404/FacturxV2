@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/Stagiaire/Documents/Bastien/PROJETS/FacturxV2/src/**/*.php)"
+    ]
+  },
+  "outputStyle": "Explanatory"
+}
