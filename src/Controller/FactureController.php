@@ -12,6 +12,8 @@ use App\Entity\PaymentMeans;
 use App\Service\FacturxService;
 use App\Form\FactureType;
 use Doctrine\ORM\EntityManagerInterface;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -205,16 +207,29 @@ class FactureController extends AbstractController
     #[Route('/{id}/download', name: 'facture_download_facturx', methods: ['GET'])]
     public function downloadFacturx(Facture $facture, FacturxService $fxService): Response
     {
-        $publicDir = $this->getParameter('kernel.project_dir') . '/public/factures';
-        if (!is_dir($publicDir)) {
-            mkdir($publicDir, 0777, true);
-        }
+        // Étape 1 — Rendu HTML → PDF en mémoire (aucun fichier temporaire sur disque)
+        $html = $this->renderView('facture/pdfA3.html.twig', ['facture' => $facture]);
 
-        $pdfFileName = 'facture_' . $facture->getNumeroFacture() . '_fx.pdf';
-        $pdfFilePath = $publicDir . '/' . $pdfFileName;
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isFontSubsettingEnabled', true);
 
-        $fxService->buildPdfFacturX($facture, $pdfFilePath);
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
 
-        return $this->file($pdfFilePath, $pdfFileName, ResponseHeaderBag::DISPOSITION_INLINE);
+        $pdfContent = $dompdf->output(); // binaire en mémoire
+
+        // Étape 2 — Injection du XML Factur-X EN16931 dans le PDF binaire
+        $facturxPdf = $fxService->embedXmlInExistingPdf($pdfContent, $facture);
+
+        $filename = 'facture_' . $facture->getNumeroFacture() . '_facturx.pdf';
+
+        return new Response($facturxPdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Content-Length'      => strlen($facturxPdf),
+        ]);
     }
 }

@@ -48,7 +48,8 @@ class FacturxService
         // Document header
         $document = $dom->createElement('rsm:ExchangedDocument');
         $document->appendChild($dom->createElement('ram:ID', $facture->getNumeroFacture()));
-        $document->appendChild($dom->createElement('ram:TypeCode', '380'));
+        // BT-3 : type de document (380 = facture, 381 = avoir, 384 = facture rectificative…)
+        $document->appendChild($dom->createElement('ram:TypeCode', $facture->getTypeFacture() ?: '380'));
 
         $issueDate = $dom->createElement('ram:IssueDateTime');
         $dateStr = $dom->createElement('udt:DateTimeString', $facture->getDateFacture()->format('Ymd'));
@@ -87,7 +88,8 @@ class FacturxService
 
             $deliveryL = $dom->createElement('ram:SpecifiedLineTradeDelivery');
             $qty = $dom->createElement('ram:BilledQuantity', number_format($ligne->getQuantite(), 4, '.', ''));
-            $qty->setAttribute('unitCode', 'H87');
+            // BT-130 : unité de mesure réelle (H87 = pièce, HUR = heure, DAY = jour, C62 = unité…)
+            $qty->setAttribute('unitCode', $ligne->getUnite() ?: 'H87');
             $deliveryL->appendChild($qty);
             $line->appendChild($deliveryL);
 
@@ -152,6 +154,15 @@ class FacturxService
             $seller->appendChild($taxReg2);
         }
 
+        // BT-43 : email du contact vendeur
+        if ($fournisseur->getEmail()) {
+            $contact = $dom->createElement('ram:DefinedTradeContact');
+            $emailNode = $dom->createElement('ram:EmailURIUniversalCommunication');
+            $emailNode->appendChild($dom->createElement('ram:URIID', $fournisseur->getEmail()));
+            $contact->appendChild($emailNode);
+            $seller->appendChild($contact);
+        }
+
         $agreement->appendChild($seller);
 
         // Buyer
@@ -165,6 +176,13 @@ class FacturxService
         $buyerAddr->appendChild($dom->createElement('ram:CountryID', $acheteur->getCodePays() ?: 'FR'));
         $buyer->appendChild($buyerAddr);
         $agreement->appendChild($buyer);
+
+        // BT-13 : référence de commande acheteur
+        if ($facture->getCommandeAcheteur()) {
+            $buyerOrderRef = $dom->createElement('ram:BuyerOrderReferencedDocument');
+            $buyerOrderRef->appendChild($dom->createElement('ram:IssuerAssignedID', $facture->getCommandeAcheteur()));
+            $agreement->appendChild($buyerOrderRef);
+        }
 
         $tradeTransaction->appendChild($agreement);
 
@@ -259,6 +277,26 @@ class FacturxService
             $taxNode->appendChild($dom->createElement('ram:CategoryCode', 'S'));
             $taxNode->appendChild($dom->createElement('ram:RateApplicablePercent', number_format($rate, 2, '.', '')));
             $settlement->appendChild($taxNode);
+        }
+
+        // === BG-20/BG-21 : Remises et frais niveau document ===
+        // Requis par BR-CO-11 : doivent apparaître explicitement même s'ils sont déjà dans les totaux
+        foreach ($facture->getAllowanceCharges() as $ac) {
+            $acNode = $dom->createElement('ram:SpecifiedTradeAllowanceCharge');
+            // true = frais (charge), false = remise (allowance)
+            $acNode->appendChild($dom->createElement('ram:ChargeIndicator', $ac->getIsCharge() ? 'true' : 'false'));
+            $acNode->appendChild($dom->createElement('ram:ActualAmount', number_format($ac->getAmount(), 2, '.', '')));
+            if ($ac->getReason()) {
+                $acNode->appendChild($dom->createElement('ram:Reason', $ac->getReason()));
+            }
+            // Lien TVA de la remise/frais (obligatoire EN16931 §10.5)
+            $acTax = $dom->createElement('ram:CategoryTradeTax');
+            $acTax->appendChild($dom->createElement('ram:TypeCode', 'VAT'));
+            $acTax->appendChild($dom->createElement('ram:CategoryCode', 'S'));
+            $acTax->appendChild($dom->createElement('ram:RateApplicablePercent',
+                number_format($ac->getTaxRate() ?? 0.0, 2, '.', '')));
+            $acNode->appendChild($acTax);
+            $settlement->appendChild($acNode);
         }
 
         // === Conditions de paiement ===
