@@ -299,18 +299,13 @@ class Facture
 
     public function getTaxBasisTotal(): float
     {
-        // Total HT des lignes
         $base = $this->getTotalHt();
 
-        // Si tu as des allowances/charges (par exemple remises négatives, charges positives)
-        if (method_exists($this, 'getAllowanceCharges')) {
-            foreach ($this->getAllowanceCharges() as $item) {
-                $amount = $item->getAmount();
-                if ($item->getIsCharge()) {
-                    $base += $amount; // charge = augmentation de la base
-                } else {
-                    $base -= $amount; // remise = diminution de la base
-                }
+        foreach ($this->getAllowanceCharges() as $item) {
+            if ($item->getIsCharge()) {
+                $base += $item->getAmount();
+            } else {
+                $base -= $item->getAmount();
             }
         }
 

@@ -39,14 +39,8 @@ class FactureController extends AbstractController
                 ->setModePaiement($request->request->get('modePaiement'))
                 ->setReferencePaiement($request->request->get('referencePaiement'))
                 ->setCommentaire($request->request->get('commentaire'));
-                $netAPayer = 0.0;
-                foreach ($facture->getLignes() as $ligne) {
-                    $netAPayer += $ligne->getMontantTtc();
-                }
 
-                $facture->setNetapayer($netAPayer); 
-
-                // --- Clients ---
+            // --- Clients ---
             if ($request->request->get('fournisseur_id') && $request->request->get('fournisseur_id') !== 'new') {
                 $fournisseur = $clientRepository->find($request->request->get('fournisseur_id'));
             } else {
@@ -135,6 +129,13 @@ class FactureController extends AbstractController
                 $facture->addPaymentMeans($payment);
                 $em->persist($payment);
             }
+
+            // Calcul du net à payer après ajout de toutes les lignes
+            $netAPayer = 0.0;
+            foreach ($facture->getLignes() as $ligne) {
+                $netAPayer += $ligne->getMontantTtc();
+            }
+            $facture->setNetApayer($netAPayer);
 
             $em->persist($facture);
             $em->flush();

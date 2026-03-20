@@ -41,40 +41,41 @@ class FactureRepository extends ServiceEntityRepository
     }
 
     /**
-     * Exemple : Trouver une facture par son numéro
+     * Trouver une facture par son numero
      */
     public function findOneByNumero(string $numero): ?Facture
     {
         return $this->createQueryBuilder('f')
-            ->andWhere('f.numeroFacture = :num')
+            ->andWhere('f.numero_facture = :num')
             ->setParameter('num', $numero)
             ->getQuery()
             ->getOneOrNullResult();
     }
 
     /**
-     * Exemple : Trouver toutes les factures d’un fournisseur donné
+     * Trouver toutes les factures d'un fournisseur donne (par SIREN du Client)
      */
     public function findByFournisseur(string $sirenFournisseur): array
     {
         return $this->createQueryBuilder('f')
-            ->andWhere('f.sirenFournisseur = :siren')
+            ->join('f.fournisseur', 'c')
+            ->andWhere('c.siren = :siren')
             ->setParameter('siren', $sirenFournisseur)
-            ->orderBy('f.dateFacture', 'DESC')
+            ->orderBy('f.date_facture', 'DESC')
             ->getQuery()
             ->getResult();
     }
 
     /**
-     * Exemple : Factures en retard (échéance dépassée et non payées)
+     * Factures en retard (echeance depassee et montant > 0)
      */
     public function findOverdue(): array
     {
         return $this->createQueryBuilder('f')
-            ->andWhere('f.dateEcheance < :now')
-            ->andWhere('f.netAPayer > 0')
+            ->andWhere('f.date_echeance < :now')
+            ->andWhere('f.net_apayer > 0')
             ->setParameter('now', new \DateTimeImmutable())
-            ->orderBy('f.dateEcheance', 'ASC')
+            ->orderBy('f.date_echeance', 'ASC')
             ->getQuery()
             ->getResult();
     }

@@ -3,11 +3,8 @@
 namespace App\Service;
 
 use App\Entity\Facture;
-use App\Entity\FactureLigne;
-use Dompdf\Options;
 use Atgp\FacturX\Writer;
 use Atgp\FacturX\Utils\ProfileHandler;
-use Dompdf\Dompdf;
 use Twig\Environment;
 
 class FacturxService
@@ -48,8 +45,11 @@ class FacturxService
         // Document header
         $document = $dom->createElement('rsm:ExchangedDocument');
         $document->appendChild($dom->createElement('ram:ID', $facture->getNumeroFacture()));
-        // BT-3 : type de document (380 = facture, 381 = avoir, 384 = facture rectificative…)
-        $document->appendChild($dom->createElement('ram:TypeCode', $facture->getTypeFacture() ?: '380'));
+        // BT-3 : type de document UNTDID 1001 (380 = facture, 381 = avoir, 386 = acompte)
+        $typeCodeMap = ['FA' => '380', 'FC' => '381', 'FN' => '386'];
+        $rawType = $facture->getTypeFacture();
+        $typeCode = $typeCodeMap[$rawType] ?? (is_numeric($rawType) ? $rawType : '380');
+        $document->appendChild($dom->createElement('ram:TypeCode', $typeCode));
 
         $issueDate = $dom->createElement('ram:IssueDateTime');
         $dateStr = $dom->createElement('udt:DateTimeString', $facture->getDateFacture()->format('Ymd'));
@@ -114,16 +114,26 @@ class FacturxService
         // Seller
         $seller = $dom->createElement('ram:SellerTradeParty');
         $fournisseur = $facture->getFournisseur();
-        // Ordre XSD CII : Name → SpecifiedLegalOrganization → PostalTradeAddress → SpecifiedTaxRegistration
+        // Ordre XSD CII strict : Name → SpecifiedLegalOrganization → DefinedTradeContact
+        //                      → PostalTradeAddress → SpecifiedTaxRegistration
         $seller->appendChild($dom->createElement('ram:Name', $fournisseur->getNom()));
 
-        // SIRET → SpecifiedLegalOrganization (ISO 6523 schemeID 0009 = SIRET) — doit précéder l'adresse
+        // SIRET → SpecifiedLegalOrganization (ISO 6523 schemeID 0009 = SIRET)
         if ($fournisseur->getSiret()) {
             $legalOrg = $dom->createElement('ram:SpecifiedLegalOrganization');
             $legalId  = $dom->createElement('ram:ID', $fournisseur->getSiret());
             $legalId->setAttribute('schemeID', '0009');
             $legalOrg->appendChild($legalId);
             $seller->appendChild($legalOrg);
+        }
+
+        // BT-43 : email du contact vendeur — doit précéder PostalTradeAddress (XSD)
+        if ($fournisseur->getEmail()) {
+            $contact = $dom->createElement('ram:DefinedTradeContact');
+            $emailNode = $dom->createElement('ram:EmailURIUniversalCommunication');
+            $emailNode->appendChild($dom->createElement('ram:URIID', $fournisseur->getEmail()));
+            $contact->appendChild($emailNode);
+            $seller->appendChild($contact);
         }
 
         $sellerAddr = $dom->createElement('ram:PostalTradeAddress');
@@ -143,7 +153,6 @@ class FacturxService
         }
 
         // BT-32 : SIREN (schemeID='FC') — satisfait BR-S-02 même sans N° TVA
-        // On dérive le SIREN des 9 premiers chiffres du SIRET si non renseigné séparément
         $siren = $fournisseur->getSiren()
             ?: ($fournisseur->getSiret() ? substr(preg_replace('/\D/', '', $fournisseur->getSiret()), 0, 9) : null);
         if ($siren) {
@@ -152,15 +161,6 @@ class FacturxService
             $id2->setAttribute('schemeID', 'FC');
             $taxReg2->appendChild($id2);
             $seller->appendChild($taxReg2);
-        }
-
-        // BT-43 : email du contact vendeur
-        if ($fournisseur->getEmail()) {
-            $contact = $dom->createElement('ram:DefinedTradeContact');
-            $emailNode = $dom->createElement('ram:EmailURIUniversalCommunication');
-            $emailNode->appendChild($dom->createElement('ram:URIID', $fournisseur->getEmail()));
-            $contact->appendChild($emailNode);
-            $seller->appendChild($contact);
         }
 
         $agreement->appendChild($seller);
@@ -283,8 +283,10 @@ class FacturxService
         // Requis par BR-CO-11 : doivent apparaître explicitement même s'ils sont déjà dans les totaux
         foreach ($facture->getAllowanceCharges() as $ac) {
             $acNode = $dom->createElement('ram:SpecifiedTradeAllowanceCharge');
-            // true = frais (charge), false = remise (allowance)
-            $acNode->appendChild($dom->createElement('ram:ChargeIndicator', $ac->getIsCharge() ? 'true' : 'false'));
+            // true = frais (charge), false = remise (allowance) — CII exige un sous-élément udt:Indicator
+            $chargeInd = $dom->createElement('ram:ChargeIndicator');
+            $chargeInd->appendChild($dom->createElement('udt:Indicator', $ac->getIsCharge() ? 'true' : 'false'));
+            $acNode->appendChild($chargeInd);
             $acNode->appendChild($dom->createElement('ram:ActualAmount', number_format($ac->getAmount(), 2, '.', '')));
             if ($ac->getReason()) {
                 $acNode->appendChild($dom->createElement('ram:Reason', $ac->getReason()));
@@ -393,42 +395,4 @@ class FacturxService
         );
     }
 
-    /**
-     * Génère le PDF avec le XML Factur-X embarqué.
-     */
-    public function buildPdfFacturX(Facture $facture, string $outputPdfPath): void
-    {
-        $xmlFile = $this->buildXml($facture);
-        $xmlContent = file_get_contents($xmlFile);
-
-        // PDF
-        $html = $this->twig->render('facture/pdfA3.html.twig', ['facture' => $facture]);
-        $tmpPdf = tempnam(sys_get_temp_dir(), 'fx_') . '.pdf';
-
-        $options = new Options();
-        $options->set('isHtml5ParserEnabled', true);
-        $options->set('isFontSubsettingEnabled', true);
-        $options->set('fontDir', __DIR__ . '/public/fonts'); // -> adapte le chemin selon ton projet
-        $options->set('fontCache', __DIR__ . '/public/fonts');
-        
-        $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-        file_put_contents($tmpPdf, $dompdf->output());
-
-        // Fusion XML + PDF
-        $writer = new Writer();
-        $pdfContent = $writer->generate(
-            file_get_contents($tmpPdf),
-            $xmlContent,
-            ProfileHandler::PROFILE_FACTURX_EN16931,
-            true,
-            [],
-            true
-        );
-
-        file_put_contents($outputPdfPath, $pdfContent);
-        @unlink($tmpPdf);
-    }
 }
