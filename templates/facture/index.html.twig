@@ -129,6 +129,8 @@
 								{% set missing = missing|merge(['Fournisseur manquant']) %}
 							{% else %}
 								{% if facture.fournisseur.siren is empty %} {% set missing = missing|merge(['SIREN fournisseur absent']) %} {% endif %}
+								{% if facture.fournisseur.siret is empty %} {% set missing = missing|merge(['SIRET fournisseur absent']) %} {% endif %}
+								{% if facture.fournisseur.numeroTva is empty %} {% set missing = missing|merge(['Numéro TVA fournisseur absent']) %} {% endif %}
 								{% if facture.fournisseur.adresse is empty or facture.fournisseur.ville is empty or facture.fournisseur.codePostal is empty or facture.fournisseur.codePays is empty %}
 									{% set missing = missing|merge(['Adresse fournisseur incomplète']) %}
 								{% endif %}
@@ -138,6 +140,8 @@
 								{% set missing = missing|merge(['Acheteur manquant']) %}
 							{% else %}
 								{% if facture.acheteur.siren is empty %} {% set missing = missing|merge(['SIREN acheteur absent']) %} {% endif %}
+								{% if facture.acheteur.siret is empty %} {% set missing = missing|merge(['SIRET acheteur absent']) %} {% endif %}
+								{% if facture.acheteur.numeroTva is empty %} {% set missing = missing|merge(['Numéro TVA acheteur absent']) %} {% endif %}
 								{% if facture.acheteur.adresse is empty or facture.acheteur.ville is empty or facture.acheteur.codePostal is empty or facture.acheteur.codePays is empty %}
 									{% set missing = missing|merge(['Adresse acheteur incomplète']) %}
 								{% endif %}

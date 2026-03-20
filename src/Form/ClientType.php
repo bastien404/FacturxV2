@@ -19,11 +19,17 @@ class ClientType extends AbstractType
                 'attr' => ['class' => 'form-control'],
                 'help' => 'Factur-X : Requis pour le routage (9 chiffres)'
             ])
-            ->add('siret', null, ['label' => 'SIRET (Optionnel/14 chiffres)', 'attr' => ['class' => 'form-control']])
+            ->add('siret', null, [
+                'label' => 'SIRET (14 chiffres)', 
+                'required' => true,
+                'attr' => ['class' => 'form-control'],
+                'help' => 'Obligatoire selon la règle retenue.'
+            ])
             ->add('numero_tva', null, [
                 'label' => 'Numéro de TVA Intracommunautaire',
+                'required' => true,
                 'attr' => ['class' => 'form-control'],
-                'help' => 'Obligatoire en dehors du régime exemption.'
+                'help' => 'Obligatoire pour les clients/acheteurs B2B.'
             ])
             ->add('email', null, ['label' => 'Email (Recommandé)', 'attr' => ['class' => 'form-control']])
             ->add('adresse', null, [

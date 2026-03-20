@@ -20,8 +20,8 @@ private string $nom;
 #[ORM\Column(type: "string", length: 20)]
 private string $siren;
 
-#[ORM\Column(type: "string", length: 20, nullable: true)]
-private ?string $siret = null;
+#[ORM\Column(type: "string", length: 20)]
+private string $siret;
 
 #[ORM\Column(type: "string", length: 50, nullable: true)]
 private ?string $tva = null;
@@ -44,8 +44,8 @@ private string $code_pays;
 #[ORM\Column(type: "string", length: 50, nullable: true)]
 private ?string $telephone = null;
 
-#[ORM\Column(type: "string", length: 255, nullable: true)]
-private ?string $numero_tva = null;
+#[ORM\Column(type: "string", length: 255)]
+private string $numero_tva;
 
 #[ORM\OneToMany(mappedBy: "fournisseur", targetEntity: Facture::class)]
 private Collection $facturesFournisseur;
@@ -64,8 +64,8 @@ public function getNom(): string { return $this->nom; }
 public function setNom(string $nom): self { $this->nom = $nom; return $this; }
 public function getSiren(): string { return $this->siren; }
 public function setSiren(string $siren): self { $this->siren = $siren; return $this; }
-public function getSiret(): ?string { return $this->siret; }
-public function setSiret(?string $siret): self { $this->siret = $siret; return $this; }
+public function getSiret(): string { return $this->siret; }
+public function setSiret(string $siret): self { $this->siret = $siret; return $this; }
 public function getTva(): ?string { return $this->tva; }
 public function setTva(?string $tva): self { $this->tva = $tva; return $this; }
 public function getEmail(): ?string { return $this->email; }
@@ -80,8 +80,8 @@ public function getCodePays(): string { return $this->code_pays; }
 public function setCodePays(string $code_pays): self { $this->code_pays = $code_pays; return $this; }
 public function getTelephone(): ?string { return $this->telephone; }
 public function setTelephone(?string $telephone): self { $this->telephone = $telephone; return $this; }
-public function getNumeroTva(): ?string { return $this->numero_tva; }
-public function setNumeroTva(?string $numero_tva): self { $this->numero_tva = $numero_tva; return $this; }
+public function getNumeroTva(): string { return $this->numero_tva; }
+public function setNumeroTva(string $numero_tva): self { $this->numero_tva = $numero_tva; return $this; }
 
 public function getFacturesFournisseur(): Collection { return $this->facturesFournisseur; }
 public function getFacturesAcheteur(): Collection { return $this->facturesAcheteur; }
