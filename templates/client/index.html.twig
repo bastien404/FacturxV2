@@ -1,0 +1,68 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des Clients{% endblock %}
+{% block nav_client %}active{% endblock %}
+
+{% block body %}
+    <div class="flex items-center justify-between mb-8" data-aos="fade-down">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Clients & Fournisseurs</h1>
+            <p class="text-sm text-slate-400 mt-1">Gérez vos contacts Factur-X</p>
+        </div>
+        <a href="{{ path('app_client_new') }}" class="btn btn-primary btn-lg">
+            <i data-lucide="plus" class="w-5 h-5"></i>
+            Nouveau Contact
+        </a>
+    </div>
+
+    <div class="glass-card overflow-hidden" data-aos="fade-up">
+        <div class="overflow-x-auto">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Raison Sociale</th>
+                        <th>SIREN</th>
+                        <th>Ville</th>
+                        <th>Pays</th>
+                        <th>TVA Intra</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for client in clients %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="font-semibold text-slate-800">{{ client.nom }}</td>
+                        <td>
+                            {% if client.siren %}
+                                <span class="badge bg-indigo-50 text-indigo-600">{{ client.siren }}</span>
+                            {% else %}
+                                <span class="text-slate-300">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ client.ville|default('-') }}</td>
+                        <td>{{ client.codePays|default('-') }}</td>
+                        <td>{{ client.numeroTva|default('-') }}</td>
+                        <td>
+                            <div class="action-menu justify-end">
+                                <a href="{{ path('app_client_show', {'id': client.id}) }}" class="btn btn-icon btn-ghost" title="Voir">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </a>
+                                <a href="{{ path('app_client_edit', {'id': client.id}) }}" class="btn btn-icon btn-ghost" title="Modifier" style="color:#f59e0b">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <i data-lucide="users" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+                            <p class="text-slate-500">Aucun client trouvé</p>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

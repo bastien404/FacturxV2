@@ -1,44 +1,192 @@
 <!DOCTYPE html>
 <html lang="fr">
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
-		<script src="https://cdn.tailwindcss.com"></script>
-		<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
-		<title>
-			{% block title %}Factures
-			{% endblock %}
-		</title>
-		<script src="https://cdn.tailwindcss.com"></script>
-	</head>
-	<body
-		class="bg-gray-100 text-gray-800">
+	{# ─── Fonts ─── #}
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-		<!-- Barre de navigation -->
-		<nav class="bg-indigo-600 text-white shadow">
-			<div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-				<a href="{{ path('facture_index') }}" class="text-lg font-bold tracking-wide">
-					💼 Gestion des Factures
-				</a>
-				<div class="space-x-4">
-					<a href="{{ path('facture_index') }}" class="hover:underline">Factures</a>
-					<a href="{{ path('facture_new') }}" class="hover:underline">➕</a>
-					<a href="{{ path('api_facturx_ui') }}" class="hover:underline bg-indigo-500 px-3 py-1 rounded text-sm">API PDF</a>
+	{# ─── Tailwind ─── #}
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+	tailwind.config = {
+		theme: {
+			extend: {
+				fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+			}
+		}
+	}
+	</script>
+
+	{# ─── GSAP ─── #}
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+	{# ─── AOS ─── #}
+	<link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+	<script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+
+	{# ─── Lucide Icons ─── #}
+	<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+	{# ─── App CSS (AssetMapper) ─── #}
+	<link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+
+	<title>{% block title %}FacturX{% endblock %}</title>
+
+	{% block stylesheets %}{% endblock %}
+</head>
+<body class="font-sans bg-slate-100 text-slate-800 antialiased" data-turbo="false">
+
+	{# ─── Page Loader ─── #}
+	<div id="page-loader">
+		<div class="loader-ring"></div>
+	</div>
+
+	<div class="flex min-h-screen">
+
+		{# ═══ SIDEBAR ═══ #}
+		<aside id="sidebar" class="sidebar">
+			{# Logo #}
+			<div class="px-6 py-7 border-b border-white/10">
+				<div class="flex items-center gap-3">
+					<div class="sidebar-logo-icon">
+						<i data-lucide="file-text" class="w-5 h-5 text-white"></i>
+					</div>
+					<div>
+						<h1 class="text-lg font-bold text-white tracking-tight">FacturX</h1>
+						<p class="text-[11px] text-slate-400 font-medium">Gestion de factures</p>
+					</div>
 				</div>
 			</div>
-		</nav>
 
-		<!-- Contenu principal -->
-		<main class="max-w-6xl mx-auto px-4 py-6"> {% block body %}{% endblock %}
+			{# Navigation #}
+			<nav class="px-3 py-6 space-y-1">
+				<a href="{{ path('facture_index') }}" class="nav-link {% block nav_index %}{% endblock %}">
+					<i data-lucide="layout-dashboard" class="w-[18px] h-[18px]"></i>
+					<span>Tableau de bord</span>
+				</a>
+				<a href="{{ path('app_client_index') }}" class="nav-link {% block nav_client %}{% endblock %}">
+					<i data-lucide="users" class="w-[18px] h-[18px]"></i>
+					<span>Clients & Fournisseurs</span>
+				</a>
+				<a href="{{ path('facture_new') }}" class="nav-link {% block nav_new %}{% endblock %}">
+					<i data-lucide="plus-circle" class="w-[18px] h-[18px]"></i>
+					<span>Nouvelle facture</span>
+				</a>
+				<a href="{{ path('api_facturx_ui') }}" class="nav-link {% block nav_api %}{% endblock %}">
+					<i data-lucide="upload" class="w-[18px] h-[18px]"></i>
+					<span>API Factur-X</span>
+				</a>
+
+				<div class="mt-6 mb-2 px-3">
+					<p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Administration</p>
+				</div>
+				<a href="{{ path('admin_settings') }}" class="nav-link {% block nav_admin %}{% endblock %}">
+					<i data-lucide="settings" class="w-[18px] h-[18px]"></i>
+					<span>Configuration</span>
+				</a>
+			</nav>
+
+			{# Bottom user #}
+			<div class="absolute bottom-0 left-0 right-0 px-6 py-5 border-t border-white/10">
+				<div class="flex items-center gap-3">
+					<div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xs font-bold text-white">B</div>
+					<div>
+						<p class="text-sm font-medium text-white">Bastien</p>
+						<p class="text-[11px] text-slate-400">Oroya</p>
+					</div>
+				</div>
+			</div>
+		</aside>
+
+		{# ═══ MAIN CONTENT ═══ #}
+		<div class="flex-1 lg:ml-[260px] main-content">
+
+			{# Top Bar #}
+			<header class="topbar">
+				<div class="flex items-center justify-between px-6 py-3">
+					<button id="sidebar-toggle" class="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition">
+						<i data-lucide="menu" class="w-5 h-5 text-slate-600"></i>
+					</button>
+					<div class="hidden lg:block"></div>
+					<div class="flex items-center gap-2 text-sm text-slate-400 font-medium">
+						<i data-lucide="calendar" class="w-4 h-4"></i>
+						<span>{{ "now"|date("d M Y") }}</span>
+					</div>
+				</div>
+			</header>
+
+			{# Flash Messages #}
+			{% for type, messages in app.flashes %}
+				{% for message in messages %}
+					<div class="mx-6 mt-4 status-box {{ type == 'success' ? 'status-success' : (type == 'danger' ? 'status-error' : 'status-info') }}" data-flash>
+						<i data-lucide="{{ type == 'success' ? 'check-circle' : (type == 'danger' ? 'alert-circle' : 'info') }}" class="w-5 h-5 flex-shrink-0"></i>
+						<span>{{ message }}</span>
+					</div>
+				{% endfor %}
+			{% endfor %}
+
+			{# Content #}
+			<main id="main-content" class="px-6 py-8 max-w-7xl mx-auto">
+				{% block body %}{% endblock %}
 			</main>
 
-			<!-- Footer -->
-			<footer class="bg-gray-200 text-center py-4 text-sm text-gray-600">
-				©
-				{{ "now"|date("Y") }}
-				- Gestion des factures avec Symfony & FacturX - Bastien with ❤️
+			{# Footer #}
+			<footer class="px-6 py-5 text-center text-xs text-slate-400 border-t border-slate-200/60">
+				&copy; {{ "now"|date("Y") }} FacturX &mdash; Bastien &bull; Oroya
 			</footer>
-		</body>
-	</html>
+		</div>
+	</div>
+
+	{# ─── Mobile Overlay ─── #}
+	<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden lg:hidden"></div>
+
+	<script>
+	/* ─── Icons ─── */
+	lucide.createIcons();
+
+	/* ─── AOS ─── */
+	AOS.init({ duration: 600, easing: 'ease-out-cubic', once: true, offset: 40 });
+
+	/* ─── Page Loader ─── */
+	window.addEventListener('load', () => {
+		const loader = document.getElementById('page-loader');
+		gsap.to(loader, {
+			opacity: 0, duration: 0.35, ease: 'power2.out',
+			onComplete: () => { loader.style.display = 'none'; }
+		});
+		gsap.from('#main-content', {
+			opacity: 0, y: 18, duration: 0.5, delay: 0.15, ease: 'power3.out'
+		});
+	});
+
+	/* ─── Sidebar Toggle (mobile) ─── */
+	const sidebar = document.getElementById('sidebar');
+	const overlay = document.getElementById('sidebar-overlay');
+
+	document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
+		sidebar.classList.toggle('open');
+		overlay.classList.toggle('hidden');
+	});
+
+	overlay?.addEventListener('click', () => {
+		sidebar.classList.remove('open');
+		overlay.classList.add('hidden');
+	});
+
+	/* ─── Auto-dismiss flash messages ─── */
+	document.querySelectorAll('[data-flash]').forEach(el => {
+		setTimeout(() => {
+			gsap.to(el, { opacity: 0, height: 0, marginTop: 0, duration: 0.4, ease: 'power2.in', onComplete: () => el.remove() });
+		}, 4000);
+	});
+	</script>
+
+	{% block javascripts %}{% endblock %}
+</body>
+</html>

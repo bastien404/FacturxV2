@@ -1,174 +1,237 @@
 {% extends 'base.html.twig' %}
-{% block title %}API Factur-X — PDF existant{% endblock %}
+{% block title %}API Factur-X{% endblock %}
+{% block nav_api %}active{% endblock %}
+
 {% block body %}
 
-<div class="mb-6">
-    <h1 class="text-2xl font-bold">Intégration Factur-X dans un PDF existant</h1>
-    <p class="text-gray-500 mt-1">Sélectionnez votre PDF — les données sont détectées automatiquement. Complétez ou corrigez si besoin, puis téléchargez.</p>
+{# ─── Header ─── #}
+<div class="flex items-center justify-between mb-8" data-aos="fade-down">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800">API Factur-X</h1>
+        <p class="text-sm text-slate-400 mt-1">Importez un PDF existant et embarquez les metadonnees EN16931</p>
+    </div>
 </div>
 
 {# === ZONE STATUT === #}
-<div id="status-box" class="hidden mb-6 p-4 rounded-lg border text-sm font-medium"></div>
+<div id="status-box" class="hidden mb-6"></div>
 
-<form id="apiForm" class="space-y-6">
+<form id="apiForm">
 
     {# === UPLOAD PDF === #}
-    <div class="bg-white rounded-xl shadow p-5 border-2 border-dashed border-indigo-300">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">PDF source</h2>
-        <div class="flex items-center gap-4">
-            <input type="file" id="pdfFile" accept="application/pdf"
-                   class="flex-1 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"/>
+    <div class="drop-zone p-8 mb-6 text-center" id="dropZone" data-aos="fade-up" data-aos-delay="0">
+        <div class="flex flex-col items-center gap-3">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                <i data-lucide="upload-cloud" class="w-8 h-8 text-indigo-400"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-slate-600">Glissez votre PDF ici ou</p>
+                <label for="pdfFile" class="text-sm font-semibold text-indigo-600 cursor-pointer hover:text-indigo-700 transition">parcourir vos fichiers</label>
+            </div>
+            <input type="file" id="pdfFile" accept="application/pdf" class="hidden"/>
             <div id="parse-status" class="hidden flex items-center gap-2 text-sm text-indigo-600 font-medium">
                 <svg id="parse-spinner" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                 </svg>
-                <span id="parse-status-text">Analyse en cours…</span>
+                <span id="parse-status-text">Analyse en cours...</span>
             </div>
+            <p class="text-xs text-slate-400">Les champs detectes apparaissent en vert</p>
+            <div id="parse-summary" class="hidden text-xs status-box status-success"></div>
         </div>
-        <p class="text-xs text-gray-400 mt-2">Dès la sélection, les champs sont pré-remplis automatiquement. Les champs détectés apparaissent en vert.</p>
-        <div id="parse-summary" class="hidden mt-3 text-xs bg-green-50 border border-green-200 rounded p-2 text-green-700"></div>
+        <div id="file-name" class="hidden mt-3 text-sm font-medium text-slate-700 flex items-center justify-center gap-2">
+            <i data-lucide="file" class="w-4 h-4 text-indigo-500"></i>
+            <span id="file-name-text"></span>
+        </div>
     </div>
 
     {# === FOURNISSEUR === #}
-    <div class="bg-white rounded-xl shadow p-5">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">Fournisseur (vendeur)</h2>
-        <div class="grid grid-cols-2 gap-3">
-            <input data-field="fournisseur.nom"        type="text"  placeholder="Raison sociale *" class="border rounded p-2 w-full col-span-2" required/>
-            <input data-field="fournisseur.siret"      type="text"  placeholder="SIRET (14 chiffres)" class="border rounded p-2 w-full"/>
-            <input data-field="fournisseur.siren"      type="text"  placeholder="SIREN (9 chiffres)"  class="border rounded p-2 w-full"/>
-            <input data-field="fournisseur.numeroTva"  type="text"  placeholder="N° TVA intracommunautaire" class="border rounded p-2 w-full"/>
-            <input data-field="fournisseur.email"      type="email" placeholder="Email"               class="border rounded p-2 w-full"/>
-            <input data-field="fournisseur.adresse"    type="text"  placeholder="Adresse"             class="border rounded p-2 w-full col-span-2"/>
-            <input data-field="fournisseur.ville"      type="text"  placeholder="Ville"               class="border rounded p-2 w-full"/>
-            <input data-field="fournisseur.codePostal" type="text"  placeholder="Code postal"         class="border rounded p-2 w-full"/>
-            <select data-field="fournisseur.codePays" class="border rounded p-2 w-full">
+    <div class="form-section" data-aos="fade-up" data-aos-delay="60">
+        <div class="form-section-title">
+            <i data-lucide="building-2" class="w-5 h-5"></i> Fournisseur (vendeur)
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input data-field="fournisseur.nom"        type="text"  placeholder="Raison sociale *" class="form-input md:col-span-2" required/>
+            <input data-field="fournisseur.siret"      type="text"  placeholder="SIRET (14 chiffres)" class="form-input"/>
+            <input data-field="fournisseur.siren"      type="text"  placeholder="SIREN (9 chiffres)"  class="form-input"/>
+            <input data-field="fournisseur.numeroTva"  type="text"  placeholder="N TVA intracommunautaire" class="form-input"/>
+            <input data-field="fournisseur.email"      type="email" placeholder="Email"               class="form-input"/>
+            <input data-field="fournisseur.adresse"    type="text"  placeholder="Adresse"             class="form-input md:col-span-2"/>
+            <input data-field="fournisseur.ville"      type="text"  placeholder="Ville"               class="form-input"/>
+            <input data-field="fournisseur.codePostal" type="text"  placeholder="Code postal"         class="form-input"/>
+            <select data-field="fournisseur.codePays" class="form-input">
                 {% for code, label in countries %}<option value="{{ code }}"{{ code == 'FR' ? ' selected' : '' }}>{{ label }}</option>{% endfor %}
             </select>
         </div>
     </div>
 
     {# === ACHETEUR === #}
-    <div class="bg-white rounded-xl shadow p-5">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">Acheteur</h2>
-        <div class="grid grid-cols-2 gap-3">
-            <input data-field="acheteur.nom"        type="text"  placeholder="Raison sociale *" class="border rounded p-2 w-full col-span-2" required/>
-            <input data-field="acheteur.siren"      type="text"  placeholder="SIREN"            class="border rounded p-2 w-full"/>
-            <input data-field="acheteur.numeroTva"  type="text"  placeholder="N° TVA"           class="border rounded p-2 w-full"/>
-            <input data-field="acheteur.email"      type="email" placeholder="Email"            class="border rounded p-2 w-full"/>
-            <input data-field="acheteur.adresse"    type="text"  placeholder="Adresse"          class="border rounded p-2 w-full col-span-2"/>
-            <input data-field="acheteur.ville"      type="text"  placeholder="Ville"            class="border rounded p-2 w-full"/>
-            <input data-field="acheteur.codePostal" type="text"  placeholder="Code postal"      class="border rounded p-2 w-full"/>
-            <select data-field="acheteur.codePays" class="border rounded p-2 w-full">
+    <div class="form-section" data-aos="fade-up" data-aos-delay="120">
+        <div class="form-section-title">
+            <i data-lucide="user" class="w-5 h-5"></i> Acheteur
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input data-field="acheteur.nom"        type="text"  placeholder="Raison sociale *" class="form-input md:col-span-2" required/>
+            <input data-field="acheteur.siren"      type="text"  placeholder="SIREN"            class="form-input"/>
+            <input data-field="acheteur.numeroTva"  type="text"  placeholder="N TVA"           class="form-input"/>
+            <input data-field="acheteur.email"      type="email" placeholder="Email"            class="form-input"/>
+            <input data-field="acheteur.adresse"    type="text"  placeholder="Adresse"          class="form-input md:col-span-2"/>
+            <input data-field="acheteur.ville"      type="text"  placeholder="Ville"            class="form-input"/>
+            <input data-field="acheteur.codePostal" type="text"  placeholder="Code postal"      class="form-input"/>
+            <select data-field="acheteur.codePays" class="form-input">
                 {% for code, label in countries %}<option value="{{ code }}"{{ code == 'FR' ? ' selected' : '' }}>{{ label }}</option>{% endfor %}
             </select>
         </div>
     </div>
 
     {# === INFOS FACTURE === #}
-    <div class="bg-white rounded-xl shadow p-5">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">Informations de la facture</h2>
-        <div class="grid grid-cols-2 gap-3">
-            <input data-field="numeroFacture"    type="text" placeholder="Numéro de facture *"    class="border rounded p-2 w-full" required/>
-            <input data-field="dateFacture"      type="date" class="border rounded p-2 w-full"     required/>
-            <select data-field="devise" class="border rounded p-2 w-full">
+    <div class="form-section" data-aos="fade-up" data-aos-delay="180">
+        <div class="form-section-title">
+            <i data-lucide="file-text" class="w-5 h-5"></i> Informations de la facture
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input data-field="numeroFacture"    type="text" placeholder="Numero de facture *"    class="form-input" required/>
+            <input data-field="dateFacture"      type="date" class="form-input"     required/>
+            <select data-field="devise" class="form-input">
                 {% for code, label in currencies %}<option value="{{ code }}"{{ code == 'EUR' ? ' selected' : '' }}>{{ label }}</option>{% endfor %}
             </select>
-            <input data-field="commandeAcheteur" type="text" placeholder="Référence commande"     class="border rounded p-2 w-full"/>
+            <input data-field="commandeAcheteur" type="text" placeholder="Reference commande"     class="form-input"/>
             <div>
-                <label class="text-xs text-gray-500 block mb-1">Date d'échéance</label>
-                <input data-field="dateEcheance" type="date" class="border rounded p-2 w-full"/>
+                <label class="text-xs text-slate-400 block mb-1">Date d'echeance</label>
+                <input data-field="dateEcheance" type="date" class="form-input"/>
             </div>
             <div>
-                <label class="text-xs text-gray-500 block mb-1">Date de livraison</label>
-                <input data-field="dateLivraison" type="date" class="border rounded p-2 w-full"/>
+                <label class="text-xs text-slate-400 block mb-1">Date de livraison</label>
+                <input data-field="dateLivraison" type="date" class="form-input"/>
             </div>
-            <textarea data-field="commentaire" placeholder="Commentaire (note libre)" class="border rounded p-2 w-full col-span-2" rows="2"></textarea>
+            <textarea data-field="commentaire" placeholder="Commentaire (note libre)" class="form-input md:col-span-2" rows="2"></textarea>
         </div>
     </div>
 
     {# === LIGNES === #}
-    <div class="bg-white rounded-xl shadow p-5">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">Lignes de facturation</h2>
-        <div id="lignes-container" class="space-y-2 mb-3"></div>
+    <div class="form-section" data-aos="fade-up" data-aos-delay="240">
+        <div class="form-section-title">
+            <i data-lucide="list" class="w-5 h-5"></i> Lignes de facturation
+        </div>
+        <div id="lignes-container" class="space-y-2 mb-3 overflow-x-auto"></div>
         <template id="ligneTemplate">
-            <div class="ligne-row grid grid-cols-10 gap-2 items-center bg-gray-50 p-2 rounded border">
-                <input type="text"   placeholder="Désignation *"  class="col-span-3 border rounded px-2 py-1 text-sm" data-key="designation" required/>
-                <input type="number" placeholder="Qté"            class="border rounded px-2 py-1 text-sm" data-key="quantite"      step="0.01" value="1"/>
-                <input type="text"   placeholder="Unité"          class="border rounded px-2 py-1 text-sm" data-key="unite"         value="H87"/>
-                <input type="number" placeholder="Prix HT"        class="border rounded px-2 py-1 text-sm" data-key="prixUnitaireHT" step="0.01"/>
-                <input type="number" placeholder="TVA %"          class="border rounded px-2 py-1 text-sm" data-key="tauxTVA"       step="0.01" value="20"/>
-                <input type="number" placeholder="HT calculé"     class="border rounded px-2 py-1 text-sm bg-gray-100" data-key="montantHT"  readonly/>
-                <input type="number" placeholder="TTC calculé"    class="border rounded px-2 py-1 text-sm bg-gray-100" data-key="montantTTC" readonly/>
-                <button type="button" class="removeLigne text-red-500 font-bold text-lg leading-none">&times;</button>
+            <div class="ligne-row flex items-center gap-2 p-3 bg-slate-50/80 rounded-xl border border-slate-100" style="min-width:780px">
+                <input type="text"   placeholder="Designation *"  class="form-input text-sm" style="flex:2.5" data-key="designation" required/>
+                <input type="number" placeholder="Qte"            class="form-input text-sm" style="flex:1" data-key="quantite"      step="0.01" value="1"/>
+                <input type="text"   placeholder="Unite"          class="form-input text-sm" style="flex:1" data-key="unite"         value="H87"/>
+                <input type="number" placeholder="Prix HT"        class="form-input text-sm" style="flex:1.2" data-key="prixUnitaireHT" step="0.01"/>
+                <input type="number" placeholder="TVA %"          class="form-input text-sm" style="flex:1" data-key="tauxTVA"       step="0.01" value="20"/>
+                <input type="number" placeholder="HT"             class="form-input text-sm" style="flex:1.2" data-key="montantHT"  readonly/>
+                <input type="number" placeholder="TTC"            class="form-input text-sm" style="flex:1.2" data-key="montantTTC" readonly/>
+                <button type="button" class="removeLigne btn-remove flex-shrink-0">&times;</button>
             </div>
         </template>
-        <button type="button" id="addLigne" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">+ Ligne</button>
+        <button type="button" id="addLigne" class="btn btn-primary btn-sm mt-1">
+            <i data-lucide="plus" class="w-4 h-4"></i> Ligne
+        </button>
 
-        <div class="mt-4 pt-3 border-t grid grid-cols-3 gap-4 text-right text-sm">
-            <div><span class="text-gray-500">Total HT</span><br/><strong id="totalHT" class="text-base">0,00 €</strong></div>
-            <div><span class="text-gray-500">Total TVA</span><br/><strong id="totalTVA" class="text-base">0,00 €</strong></div>
-            <div><span class="text-gray-500">Total TTC</span><br/><strong id="totalTTC" class="text-lg text-indigo-700">0,00 €</strong></div>
+        <div class="totals-box mt-5 grid grid-cols-3 gap-4 text-right">
+            <div><span class="text-xs text-slate-400 block">Total HT</span><strong id="totalHT" class="total-value text-base text-slate-700">0,00 EUR</strong></div>
+            <div><span class="text-xs text-slate-400 block">Total TVA</span><strong id="totalTVA" class="total-value text-base text-slate-700">0,00 EUR</strong></div>
+            <div><span class="text-xs text-slate-400 block">Total TTC</span><strong id="totalTTC" class="total-value text-lg text-indigo-600">0,00 EUR</strong></div>
         </div>
     </div>
 
     {# === REMISES / CHARGES === #}
-    <div class="bg-white rounded-xl shadow p-5">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">Remises / Charges <span class="text-gray-400 font-normal text-sm">(optionnel)</span></h2>
-        <div id="allow-container" class="space-y-2 mb-3"></div>
+    <div class="form-section" data-aos="fade-up" data-aos-delay="300">
+        <div class="form-section-title">
+            <i data-lucide="percent" class="w-5 h-5"></i> Remises / Charges
+            <span class="text-xs text-slate-400 font-normal ml-1">(optionnel)</span>
+        </div>
+        <div id="allow-container" class="space-y-2 mb-3 overflow-x-auto"></div>
         <template id="allowTemplate">
-            <div class="allow-row grid grid-cols-5 gap-2 items-center">
-                <input type="number" step="0.01" placeholder="Montant HT"  class="border rounded p-2 text-sm" data-key="amount"/>
-                <input type="number" step="0.01" placeholder="TVA %"       class="border rounded p-2 text-sm" data-key="taxRate"/>
-                <select class="border rounded p-2 text-sm" data-key="isCharge">
-                    <option value="false">Remise (–)</option>
-                    <option value="true">Charge (+)</option>
+            <div class="allow-row flex items-center gap-2 p-3 bg-slate-50/80 rounded-xl border border-slate-100" style="min-width:500px">
+                <input type="number" step="0.01" placeholder="Montant HT"  class="form-input text-sm" style="flex:1.2" data-key="amount"/>
+                <input type="number" step="0.01" placeholder="TVA %"       class="form-input text-sm" style="flex:1" data-key="taxRate"/>
+                <select class="form-input text-sm" style="flex:1" data-key="isCharge">
+                    <option value="false">Remise</option>
+                    <option value="true">Charge</option>
                 </select>
-                <input type="text" placeholder="Libellé"                   class="border rounded p-2 text-sm" data-key="reason"/>
-                <button type="button" class="removeAllow text-red-500 font-bold">&times;</button>
+                <input type="text" placeholder="Libelle"                   class="form-input text-sm" style="flex:1.5" data-key="reason"/>
+                <button type="button" class="removeAllow btn-remove flex-shrink-0">&times;</button>
             </div>
         </template>
-        <button type="button" id="addAllow" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">+ Ajouter</button>
+        <button type="button" id="addAllow" class="btn btn-primary btn-sm mt-1">
+            <i data-lucide="plus" class="w-4 h-4"></i> Ajouter
+        </button>
     </div>
 
     {# === MOYENS DE PAIEMENT === #}
-    <div class="bg-white rounded-xl shadow p-5">
-        <h2 class="text-lg font-semibold text-indigo-700 mb-3">Moyens de paiement <span class="text-gray-400 font-normal text-sm">(optionnel)</span></h2>
+    <div class="form-section" data-aos="fade-up" data-aos-delay="360">
+        <div class="form-section-title">
+            <i data-lucide="credit-card" class="w-5 h-5"></i> Moyens de paiement
+            <span class="text-xs text-slate-400 font-normal ml-1">(optionnel)</span>
+        </div>
         <div id="payment-container" class="space-y-2 mb-3"></div>
         <template id="payTemplate">
-            <div class="pay-row grid grid-cols-3 gap-2 items-center">
-                <select class="border rounded p-2 text-sm" data-key="code">
-                    {% for code, label in payment_means %}<option value="{{ code }}">{{ code }} – {{ label }}</option>{% endfor %}
+            <div class="pay-row grid grid-cols-3 gap-2 items-center p-3 bg-slate-50/80 rounded-xl border border-slate-100">
+                <select class="form-input text-sm" data-key="code">
+                    {% for code, label in payment_means %}<option value="{{ code }}">{{ code }} - {{ label }}</option>{% endfor %}
                 </select>
-                <input type="text" placeholder="IBAN ou information" class="border rounded p-2 text-sm" data-key="information"/>
-                <button type="button" class="removePay text-red-500 font-bold">&times;</button>
+                <input type="text" placeholder="IBAN ou information" class="form-input text-sm" data-key="information"/>
+                <button type="button" class="removePay btn-remove">&times;</button>
             </div>
         </template>
-        <button type="button" id="addPayment" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">+ Ajouter</button>
+        <button type="button" id="addPayment" class="btn btn-primary btn-sm mt-1">
+            <i data-lucide="plus" class="w-4 h-4"></i> Ajouter
+        </button>
     </div>
 
     {# === ACTIONS === #}
-    <div class="flex gap-4 pt-2 pb-10">
-        <button type="button" id="btnEmbed"
-                class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-lg shadow transition">
-            <span id="btnEmbedLabel">Télécharger PDF Factur-X</span>
-            <span id="spinnerEmbed" class="hidden ml-2">⏳</span>
+    <div class="flex gap-4 pt-4 pb-10" data-aos="fade-up" data-aos-delay="400">
+        <button type="button" id="btnEmbed" class="btn btn-primary btn-lg flex-1">
+            <i data-lucide="download" class="w-5 h-5"></i>
+            <span id="btnEmbedLabel">Telecharger PDF Factur-X</span>
+            <span id="spinnerEmbed" class="hidden"><svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span>
         </button>
-        <button type="button" id="btnXml"
-                class="flex-1 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold text-lg shadow transition">
-            <span id="btnXmlLabel">Télécharger XML seul</span>
-            <span id="spinnerXml" class="hidden ml-2">⏳</span>
+        <button type="button" id="btnXml" class="btn btn-ghost btn-lg flex-1">
+            <i data-lucide="code" class="w-5 h-5"></i>
+            <span id="btnXmlLabel">Telecharger XML seul</span>
+            <span id="spinnerXml" class="hidden"><svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span>
         </button>
     </div>
 
 </form>
 
+{% endblock %}
+
+{% block javascripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
 
-    // ── Parsing automatique au choix du PDF ───────────────────────────────
+    /* ─── Drag & Drop ─── */
+    const dropZone = document.getElementById('dropZone');
+    const pdfInput = document.getElementById('pdfFile');
+    const fileNameBox = document.getElementById('file-name');
+    const fileNameText = document.getElementById('file-name-text');
+
+    ['dragenter','dragover'].forEach(ev => {
+        dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(ev => {
+        dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+    });
+    dropZone.addEventListener('drop', e => {
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            pdfInput.files = dt.files;
+            pdfInput.dispatchEvent(new Event('change'));
+        }
+    });
+    dropZone.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') pdfInput.click();
+    });
+
+    /* ─── Parsing automatique au choix du PDF ─── */
     const FIELD_LABELS = {
-        'numeroFacture': 'Numéro de facture', 'dateFacture': 'Date',
+        'numeroFacture': 'Numero de facture', 'dateFacture': 'Date',
         'fournisseur': 'Fournisseur', 'fournisseur.siret': 'SIRET',
         'fournisseur.tva': 'TVA fournisseur', 'acheteur': 'Acheteur',
         'paymentMeans': 'Moyen de paiement', 'lignes': 'Lignes',
@@ -177,17 +240,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function markField(el, detected) {
         if (!el) return;
         if (detected) {
-            el.classList.add('border-green-400', 'bg-green-50');
-            el.classList.remove('border-gray-300');
             el.setAttribute('data-autofilled', 'true');
         } else {
-            el.classList.remove('border-green-400', 'bg-green-50');
             el.removeAttribute('data-autofilled');
         }
     }
 
     function setField(selector, value) {
-        const el = document.querySelector(`[data-field="${selector}"]`);
+        const el = document.querySelector('[data-field="' + selector + '"]');
         if (el && value != null && value !== '') {
             el.value = value;
             markField(el, true);
@@ -195,21 +255,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function fillForm(data) {
-        // Champs simples
-        setField('numeroFacture',    data.numeroFacture);
-        setField('dateFacture',      data.dateFacture);
-        setField('devise',           data.devise);
+        setField('numeroFacture', data.numeroFacture);
+        setField('dateFacture', data.dateFacture);
+        setField('devise', data.devise);
 
-        // Fournisseur
         if (data.fournisseur) {
             Object.entries(data.fournisseur).forEach(([k, v]) => setField('fournisseur.' + k, v));
         }
-        // Acheteur
         if (data.acheteur) {
             Object.entries(data.acheteur).forEach(([k, v]) => setField('acheteur.' + k, v));
         }
 
-        // Lignes — on vide et recrée
         if (data.lignes && data.lignes.length > 0) {
             lignesContainer.innerHTML = '';
             data.lignes.forEach(ligne => {
@@ -225,13 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Moyens de paiement
         if (data.paymentMeans && data.paymentMeans.length > 0) {
             payContainer.innerHTML = '';
             data.paymentMeans.forEach(pm => {
                 const frag = document.importNode(document.getElementById('payTemplate').content, true);
-                frag.querySelector('.removePay').addEventListener('click', e => e.target.closest('.pay-row').remove());
-                const div = frag.querySelector('.pay-row');
+                frag.querySelector('.removePay').addEventListener('click', e => {
+                    const r = e.target.closest('.pay-row');
+                    gsap.to(r, { opacity: 0, height: 0, duration: 0.2, onComplete: () => r.remove() });
+                });
                 payContainer.appendChild(frag);
                 const codeEl = payContainer.lastElementChild.querySelector('[data-key="code"]');
                 const infoEl = payContainer.lastElementChild.querySelector('[data-key="information"]');
@@ -240,23 +297,31 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Résumé des champs détectés
         const detected = (data._detected || []).map(k => FIELD_LABELS[k] || k);
         if (detected.length > 0) {
             const summary = document.getElementById('parse-summary');
-            summary.textContent = 'Détecté automatiquement : ' + detected.join(', ') + '.';
+            summary.textContent = 'Detecte automatiquement : ' + detected.join(', ') + '.';
             summary.classList.remove('hidden');
+            gsap.from(summary, { opacity: 0, y: -5, duration: 0.3 });
         }
+
+        /* Animate all autofilled fields */
+        gsap.from('[data-autofilled="true"]', { borderColor: '#6366f1', duration: 0.6, stagger: 0.02 });
     }
 
-    document.getElementById('pdfFile').addEventListener('change', async (e) => {
+    pdfInput.addEventListener('change', async (e) => {
         if (!e.target.files.length) return;
+
+        fileNameText.textContent = e.target.files[0].name;
+        fileNameBox.classList.remove('hidden');
+        gsap.from(fileNameBox, { opacity: 0, y: 5, duration: 0.3 });
 
         const parseStatus = document.getElementById('parse-status');
         const parseText   = document.getElementById('parse-status-text');
         parseStatus.classList.remove('hidden');
-        parseText.textContent = 'Analyse en cours…';
+        parseText.textContent = 'Analyse en cours...';
         document.getElementById('parse-summary').classList.add('hidden');
+        document.getElementById('parse-spinner').classList.remove('hidden');
 
         try {
             const form = new FormData();
@@ -268,16 +333,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(data.error || 'Erreur serveur');
 
             fillForm(data);
-            parseText.textContent = 'Données détectées';
+            parseText.textContent = 'Donnees detectees';
             document.getElementById('parse-spinner').classList.add('hidden');
+            lucide.createIcons();
 
         } catch (err) {
-            parseText.textContent = 'Détection échouée — remplissez manuellement';
+            parseText.textContent = 'Detection echouee - remplissez manuellement';
             document.getElementById('parse-spinner').classList.add('hidden');
         }
     });
 
-    // ── Lignes ────────────────────────────────────────────────────────────
+    /* ─── Lignes ─── */
     const lignesContainer = document.getElementById('lignes-container');
     const ligneTemplate   = document.getElementById('ligneTemplate').content;
 
@@ -306,66 +372,77 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('totalTTC').textContent = fmt(ttc);
     }
 
-    function fmt(n) { return n.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'; }
+    function fmt(n) { return n.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' EUR'; }
 
     function addLigne() {
         const frag = document.importNode(ligneTemplate, true);
         const row  = frag.querySelector('.ligne-row');
         ['quantite','prixUnitaireHT','tauxTVA'].forEach(k => {
-            row.querySelector(`[data-key="${k}"]`).addEventListener('input', () => recalcLigne(row));
+            row.querySelector('[data-key="' + k + '"]').addEventListener('input', () => recalcLigne(row));
         });
-        row.querySelector('.removeLigne').addEventListener('click', () => { row.remove(); recalcTotaux(); });
+        row.querySelector('.removeLigne').addEventListener('click', () => {
+            gsap.to(row, { opacity: 0, height: 0, duration: 0.2, ease: 'power2.in', onComplete: () => { row.remove(); recalcTotaux(); } });
+        });
         lignesContainer.appendChild(frag);
+        gsap.from(lignesContainer.lastElementChild, { opacity: 0, y: -8, duration: 0.3, ease: 'power2.out' });
     }
 
     document.getElementById('addLigne').addEventListener('click', addLigne);
-    addLigne(); // une ligne par défaut
+    addLigne();
 
-    // ── Allowances ────────────────────────────────────────────────────────
+    /* ─── Allowances ─── */
     const allowContainer = document.getElementById('allow-container');
     document.getElementById('addAllow').addEventListener('click', () => {
         const frag = document.importNode(document.getElementById('allowTemplate').content, true);
-        frag.querySelector('.removeAllow').addEventListener('click', e => e.target.closest('.allow-row').remove());
+        frag.querySelector('.removeAllow').addEventListener('click', e => {
+            const r = e.target.closest('.allow-row');
+            gsap.to(r, { opacity: 0, height: 0, duration: 0.2, onComplete: () => r.remove() });
+        });
         allowContainer.appendChild(frag);
+        gsap.from(allowContainer.lastElementChild, { opacity: 0, y: -8, duration: 0.3 });
     });
 
-    // ── Paiements ─────────────────────────────────────────────────────────
+    /* ─── Paiements ─── */
     const payContainer = document.getElementById('payment-container');
     document.getElementById('addPayment').addEventListener('click', () => {
         const frag = document.importNode(document.getElementById('payTemplate').content, true);
-        frag.querySelector('.removePay').addEventListener('click', e => e.target.closest('.pay-row').remove());
+        frag.querySelector('.removePay').addEventListener('click', e => {
+            const r = e.target.closest('.pay-row');
+            gsap.to(r, { opacity: 0, height: 0, duration: 0.2, onComplete: () => r.remove() });
+        });
         payContainer.appendChild(frag);
+        gsap.from(payContainer.lastElementChild, { opacity: 0, y: -8, duration: 0.3 });
     });
 
-    // ── Validation avant envoi ────────────────────────────────────────────
+    /* ─── Validation ─── */
     function validateForm(invoice) {
         const errs = [];
-        if (!invoice.numeroFacture)           errs.push('Numéro de facture manquant.');
+        if (!invoice.numeroFacture)           errs.push('Numero de facture manquant.');
         if (!invoice.dateFacture)             errs.push('Date de facture manquante.');
         if (!invoice.fournisseur?.nom)        errs.push('Nom du fournisseur manquant.');
         if (!invoice.fournisseur?.numeroTva && !invoice.fournisseur?.siren && !invoice.fournisseur?.siret)
-                                              errs.push('Fournisseur : N° TVA, SIREN ou SIRET requis.');
+                                              errs.push('Fournisseur : N TVA, SIREN ou SIRET requis.');
         if (!invoice.acheteur?.nom)           errs.push("Nom de l'acheteur manquant.");
-        if (!invoice.lignes?.length)          errs.push('Au moins une ligne de facturation est requise.');
+        if (!invoice.lignes?.length)          errs.push('Au moins une ligne est requise.');
         invoice.lignes?.forEach((l, i) => {
             const n = i + 1;
-            if (!l.designation)              errs.push(`Ligne ${n} : désignation manquante.`);
-            if (!l.quantite || l.quantite <= 0) errs.push(`Ligne ${n} : quantité invalide.`);
-            if (l.prixUnitaireHT == null)    errs.push(`Ligne ${n} : prix unitaire HT manquant.`);
+            if (!l.designation)              errs.push('Ligne ' + n + ' : designation manquante.');
+            if (!l.quantite || l.quantite <= 0) errs.push('Ligne ' + n + ' : quantite invalide.');
+            if (l.prixUnitaireHT == null)    errs.push('Ligne ' + n + ' : prix unitaire HT manquant.');
         });
         return errs;
     }
 
-    // ── Collecte des données du formulaire ────────────────────────────────
+    /* ─── Collecte ─── */
     function collectInvoice() {
         function val(selector) {
-            const el = document.querySelector(`[data-field="${selector}"]`);
+            const el = document.querySelector('[data-field="' + selector + '"]');
             return el ? el.value.trim() : '';
         }
 
         function collectParty(prefix) {
             const obj = {};
-            document.querySelectorAll(`[data-field^="${prefix}."]`).forEach(el => {
+            document.querySelectorAll('[data-field^="' + prefix + '."]').forEach(el => {
                 const key = el.getAttribute('data-field').replace(prefix + '.', '');
                 if (el.value.trim()) obj[key] = el.value.trim();
             });
@@ -375,21 +452,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const lignes = [];
         lignesContainer.querySelectorAll('.ligne-row').forEach(row => {
             lignes.push({
-                designation:   row.querySelector('[data-key="designation"]').value.trim(),
-                quantite:      parseFloat(row.querySelector('[data-key="quantite"]').value) || 0,
-                unite:         row.querySelector('[data-key="unite"]').value.trim() || 'H87',
+                designation:    row.querySelector('[data-key="designation"]').value.trim(),
+                quantite:       parseFloat(row.querySelector('[data-key="quantite"]').value) || 0,
+                unite:          row.querySelector('[data-key="unite"]').value.trim() || 'H87',
                 prixUnitaireHT: parseFloat(row.querySelector('[data-key="prixUnitaireHT"]').value) || 0,
-                tauxTVA:       parseFloat(row.querySelector('[data-key="tauxTVA"]').value) || 0,
+                tauxTVA:        parseFloat(row.querySelector('[data-key="tauxTVA"]').value) || 0,
             });
         });
 
         const allowances = [];
         allowContainer.querySelectorAll('.allow-row').forEach(row => {
             allowances.push({
-                amount:    parseFloat(row.querySelector('[data-key="amount"]').value) || 0,
-                taxRate:   parseFloat(row.querySelector('[data-key="taxRate"]').value) || 0,
-                isCharge:  row.querySelector('[data-key="isCharge"]').value === 'true',
-                reason:    row.querySelector('[data-key="reason"]').value.trim(),
+                amount:   parseFloat(row.querySelector('[data-key="amount"]').value) || 0,
+                taxRate:  parseFloat(row.querySelector('[data-key="taxRate"]').value) || 0,
+                isCharge: row.querySelector('[data-key="isCharge"]').value === 'true',
+                reason:   row.querySelector('[data-key="reason"]').value.trim(),
             });
         });
 
@@ -415,29 +492,26 @@ document.addEventListener('DOMContentLoaded', () => {
             allowances,
             paymentMeans,
         };
-
-        // Nettoyer les clés undefined
         return JSON.parse(JSON.stringify(invoice));
     }
 
-    // ── Affichage du statut ────────────────────────────────────────────────
+    /* ─── Status ─── */
     function showStatus(msg, type) {
         const box = document.getElementById('status-box');
-        box.className = 'mb-6 p-4 rounded-lg border text-sm font-medium ' +
-            (type === 'error'   ? 'bg-red-50 border-red-300 text-red-700' :
-             type === 'success' ? 'bg-green-50 border-green-300 text-green-700' :
-                                  'bg-blue-50 border-blue-300 text-blue-700');
+        box.className = 'mb-6 status-box ' +
+            (type === 'error' ? 'status-error' : type === 'success' ? 'status-success' : 'status-info');
         box.textContent = msg;
         box.classList.remove('hidden');
+        gsap.from(box, { opacity: 0, y: -8, duration: 0.3, ease: 'power2.out' });
         box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function setLoading(btnId, spinnerId, loading) {
         document.getElementById(btnId).disabled = loading;
+        document.getElementById(btnId).style.opacity = loading ? '0.7' : '1';
         document.getElementById(spinnerId).classList.toggle('hidden', !loading);
     }
 
-    // ── Téléchargement depuis un Blob ──────────────────────────────────────
     function downloadBlob(blob, filename) {
         const url = URL.createObjectURL(blob);
         const a   = document.createElement('a');
@@ -447,36 +521,36 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     }
 
-    // ── Bouton PDF Factur-X ───────────────────────────────────────────────
+    /* ─── PDF Factur-X ─── */
     document.getElementById('btnEmbed').addEventListener('click', async () => {
-        const pdfInput = document.getElementById('pdfFile');
-        if (!pdfInput.files.length) {
-            showStatus('Veuillez sélectionner un fichier PDF source.', 'error'); return;
+        const pdfFileEl = document.getElementById('pdfFile');
+        if (!pdfFileEl.files.length) {
+            showStatus('Veuillez selectionner un fichier PDF source.', 'error'); return;
         }
 
         const invoice = collectInvoice();
         const errs = validateForm(invoice);
-        if (errs.length) { showStatus('Champs manquants :\n• ' + errs.join('\n• '), 'error'); return; }
+        if (errs.length) { showStatus('Champs manquants :\n' + errs.join('\n'), 'error'); return; }
 
         setLoading('btnEmbed', 'spinnerEmbed', true);
-        showStatus('Génération en cours…', 'info');
+        showStatus('Generation en cours...', 'info');
 
         try {
             const form = new FormData();
-            form.append('pdf', pdfInput.files[0]);
+            form.append('pdf', pdfFileEl.files[0]);
             form.append('invoice', JSON.stringify(invoice));
 
             const res = await fetch('{{ path("api_facturx_embed") }}', { method: 'POST', body: form });
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-                throw new Error(err.error || `HTTP ${res.status}`);
+                throw new Error(err.error || 'HTTP ' + res.status);
             }
 
-            const blob     = await res.blob();
+            const blob = await res.blob();
             const filename = 'facture_' + (invoice.numeroFacture || 'fx').replace(/[^a-zA-Z0-9_\-]/g, '_') + '_facturx.pdf';
             downloadBlob(blob, filename);
-            showStatus('PDF Factur-X généré et téléchargé avec succès.', 'success');
+            showStatus('PDF Factur-X genere et telecharge avec succes.', 'success');
 
         } catch (e) {
             showStatus('Erreur : ' + e.message, 'error');
@@ -485,14 +559,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ── Bouton XML seul ───────────────────────────────────────────────────
+    /* ─── XML seul ─── */
     document.getElementById('btnXml').addEventListener('click', async () => {
         const invoice = collectInvoice();
         const errs = validateForm(invoice);
-        if (errs.length) { showStatus('Champs manquants :\n• ' + errs.join('\n• '), 'error'); return; }
+        if (errs.length) { showStatus('Champs manquants :\n' + errs.join('\n'), 'error'); return; }
 
         setLoading('btnXml', 'spinnerXml', true);
-        showStatus('Génération du XML en cours…', 'info');
+        showStatus('Generation du XML en cours...', 'info');
 
         try {
             const res = await fetch('{{ path("api_facturx_xml") }}', {
@@ -503,13 +577,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-                throw new Error(err.error || `HTTP ${res.status}`);
+                throw new Error(err.error || 'HTTP ' + res.status);
             }
 
-            const blob     = await res.blob();
+            const blob = await res.blob();
             const filename = 'facture_' + (invoice.numeroFacture || 'fx').replace(/[^a-zA-Z0-9_\-]/g, '_') + '_fx.xml';
             downloadBlob(blob, filename);
-            showStatus('XML Factur-X généré et téléchargé avec succès.', 'success');
+            showStatus('XML Factur-X genere et telecharge avec succes.', 'success');
 
         } catch (e) {
             showStatus('Erreur : ' + e.message, 'error');
@@ -518,6 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    lucide.createIcons();
 });
 </script>
 {% endblock %}

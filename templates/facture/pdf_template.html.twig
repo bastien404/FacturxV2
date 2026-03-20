@@ -1,241 +1,200 @@
 {# templates/facture/pdf_template.html.twig #}
 <!DOCTYPE html>
 <html lang="fr">
-	<head>
-		<meta charset="UTF-8">
-		<title>Facture
-			{{ facture.numeroFacture }}</title>
-		<script src="https://cdn.tailwindcss.com"></script>
-		<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-		<style>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Facture {{ facture.numeroFacture }}</title>
 
-			{# @font-face {
-				font-family: 'Poppins';
-				font-style: normal;
-				font-weight: 400;
-				src: url('public/fonts/Poppins-Regular.ttf') format('truetype');
-			}
-			@font-face {
-				font-family: 'Poppins';
-				font-style: bold;
-				font-weight: 700;
-				src: url('public/fonts/Poppins-Bold.ttf') format('truetype');
-			}
-			* {
-				font-family: 'Poppins', sans-serif !important;
-			}
-			body,
-			h1,
-			h2,
-			h3,
-			h4,
-			h5,
-			h6,
-			b,
-			strong,
-			table,
-			td,
-			th,
-			p,
-			span {
-				font-family: 'Poppins', sans-serif !important;
-			}
-			b,
-			strong {
-				font-family: 'Poppins', sans-serif !important;
-				font-weight: 700 !important;
-			} #}
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+	tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+	<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
+	<style>
+		@media print {
+			.no-print { display: none !important; }
+			body { background: white !important; font-size: 11pt; }
+			section, .invoice-card { page-break-inside: avoid; box-shadow: none !important; }
+		}
+	</style>
+</head>
+<body class="font-sans bg-slate-100 text-slate-800 antialiased min-h-screen">
 
-			.invoice-header {
-				background: linear-gradient(135deg, #363636ff 0%, #c5c5c5ff 100%);
-			}
-			.divider {
-				border-bottom: 2px dashed #e5e7eb;
-				margin: 1.5rem 0;
-			}
-			.total-row {
-				background-color: #f9fafb;
-			}
-			.footer-text {
-				color: #6b7280;
-			}
-			@media print {
-				.no-print {
-					display: none;
-				}
-				body {
-					background: white;
-					font-size: 12pt;
-				}
-				section {
-					page-break-inside: avoid;
-				}
-			}
-		</style>
-	</head>
-	<body class="bg-gray-50">
-		<div
-			class="max-w-4xl mx-auto my-8 bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none">
+	{# ─── Top Bar (no-print) ─── #}
+	<div class="no-print sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60">
+		<div class="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+			<a href="{{ path('facture_index') }}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition">
+				<i data-lucide="arrow-left" class="w-4 h-4"></i> Retour
+			</a>
+			<div class="flex items-center gap-3">
+				<a href="{{ path('facture_download_facturx', {id: facture.id}) }}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md hover:shadow-lg transition">
+					<i data-lucide="download" class="w-4 h-4"></i> Telecharger FacturX
+				</a>
+				<button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+					<i data-lucide="printer" class="w-4 h-4"></i> Imprimer
+				</button>
+				<a href="{{ path('facture_edit', {id: facture.id}) }}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+					<i data-lucide="pencil" class="w-4 h-4"></i> Modifier
+				</a>
+			</div>
+		</div>
+	</div>
 
-			<!-- Header -->
-			<header class="invoice-header text-white px-8 py-6">
-				<div class="flex justify-between items-center">
-					<div>
-						<h1 class="text-3xl font-bold">FACTURE
-							{{ facture.numeroFacture }}
-							- Oroya</h1>
-						<p class="mt-2">Date:
-							{{ facture.dateFacture|date('d/m/Y') }}</p>
-						<p class="text-white/90">Numéro:
-							{{ facture.numeroFacture }}</p>
-					</div>
-					<div class="logo-badge p-4 rounded-xl flex items-center">
-						<img src="https://www.oroya.fr/wp-content/themes/oroyaV2/dist/assets/img/favicons/android-icon-192x192.png" alt="Logo" class="w-12 h-12">
+	{# ─── Invoice Card ─── #}
+	<div class="invoice-card max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden print:shadow-none print:my-0 print:rounded-none">
+
+		{# Header #}
+		<header class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-white px-10 py-8">
+			<div class="flex justify-between items-start">
+				<div>
+					<p class="text-xs uppercase tracking-widest text-indigo-300 font-semibold mb-2">Facture</p>
+					<h1 class="text-3xl font-bold tracking-tight">{{ facture.numeroFacture }}</h1>
+					<div class="flex items-center gap-4 mt-3 text-sm text-slate-300">
+						<span class="flex items-center gap-1.5">
+							<i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+							{{ facture.dateFacture|date('d/m/Y') }}
+						</span>
+						{% if facture.dateEcheance %}
+							<span class="flex items-center gap-1.5">
+								<i data-lucide="clock" class="w-3.5 h-3.5"></i>
+								Echeance {{ facture.dateEcheance|date('d/m/Y') }}
+							</span>
+						{% endif %}
 					</div>
 				</div>
-			</header>
-
-			<!-- Fournisseur & Client -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6 px-8 py-6">
-				<div>
-					<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-gray-500 inline-block">FOURNISSEUR</h2>
-					<div class="space-y-1">
-						<p class="font-medium">{{ facture.fournisseur.nom ?? '-' }}</p>
-						<p>SIREN:
-							{{ facture.fournisseur.siren }}</p>
-						{% if facture.fournisseur.siret %}
-							<p>SIRET:
-								{{ facture.fournisseur.siret }}</p>
-						{% endif %}
-						{% if facture.fournisseur.tva %}
-							<p>TVA:
-								{{ facture.fournisseur.tva }}</p>
-						{% endif %}
-						<p>{{ facture.fournisseur.adresse ?? '-' }},
-							{{ facture.fournisseur.codePostal ?? '-' }}
-							{{ facture.fournisseur.ville }}</p>
-					</div>
-				</div>
-				<div>
-					<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-gray-500 inline-block">CLIENT</h2>
-					<div class="space-y-1">
-						<p class="font-medium">{{ facture.acheteur.nom ?? '-' }}</p>
-						<p>{{ facture.acheteur.siren ?? '-' }}</p>
-						<p>{{ facture.acheteur.adresse ?? '-' }}</p>
-					</div>
+				<div class="w-14 h-14 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+					<i data-lucide="file-text" class="w-7 h-7 text-indigo-300"></i>
 				</div>
 			</div>
+		</header>
 
-			<div class="divider"></div>
+		{# Parties #}
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-8 px-10 py-8">
+			<div>
+				<p class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-3">Fournisseur</p>
+				<p class="text-lg font-semibold text-slate-800 mb-1">{{ facture.fournisseur.nom ?? '-' }}</p>
+				<div class="space-y-0.5 text-sm text-slate-500">
+					<p>SIREN: {{ facture.fournisseur.siren }}</p>
+					{% if facture.fournisseur.siret %}<p>SIRET: {{ facture.fournisseur.siret }}</p>{% endif %}
+					{% if facture.fournisseur.tva %}<p>TVA: {{ facture.fournisseur.tva }}</p>{% endif %}
+					<p>{{ facture.fournisseur.adresse ?? '-' }}, {{ facture.fournisseur.codePostal ?? '-' }} {{ facture.fournisseur.ville }}</p>
+				</div>
+			</div>
+			<div>
+				<p class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-3">Client</p>
+				<p class="text-lg font-semibold text-slate-800 mb-1">{{ facture.acheteur.nom ?? '-' }}</p>
+				<div class="space-y-0.5 text-sm text-slate-500">
+					<p>{{ facture.acheteur.siren ?? '-' }}</p>
+					<p>{{ facture.acheteur.adresse ?? '-' }}</p>
+				</div>
+			</div>
+		</div>
 
-			<!-- Détails facture -->
-			<div class="px-8 py-4">
-				<h2 class="text-lg font-semibold text-gray-800 mb-4 border-b-2 border-gray-500 inline-block">DÉTAIL DE LA FACTURE</h2>
-				<div class="overflow-x-auto">
-					{% if facture.lignes is not empty %}
-						<table class="w-full border border-gray-300">
-							<thead class="bg-gray-100">
-								<tr>
-									<th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Désignation</th>
-									<th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Référence</th>
-									<th class="py-3 px-4 text-right text-sm font-medium text-gray-700">Qté</th>
-									<th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Unité</th>
-									<th class="py-3 px-4 text-right text-sm font-medium text-gray-700">Prix HT</th>
-									<th class="py-3 px-4 text-right text-sm font-medium text-gray-700">Montant HT</th>
-									<th class="py-3 px-4 text-right text-sm font-medium text-gray-700">TVA</th>
-									<th class="py-3 px-4 text-right text-sm font-medium text-gray-700">TTC</th>
+		{# Divider #}
+		<div class="mx-10 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+
+		{# Lines Table #}
+		<div class="px-10 py-6">
+			<p class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-4">Detail de la facture</p>
+			{% if facture.lignes is not empty %}
+				<div class="overflow-x-auto rounded-xl border border-slate-200">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="bg-slate-50">
+								<th class="py-3 px-4 text-left text-[11px] uppercase tracking-wider font-semibold text-slate-400">Designation</th>
+								<th class="py-3 px-4 text-left text-[11px] uppercase tracking-wider font-semibold text-slate-400">Ref.</th>
+								<th class="py-3 px-4 text-right text-[11px] uppercase tracking-wider font-semibold text-slate-400">Qte</th>
+								<th class="py-3 px-4 text-left text-[11px] uppercase tracking-wider font-semibold text-slate-400">Unite</th>
+								<th class="py-3 px-4 text-right text-[11px] uppercase tracking-wider font-semibold text-slate-400">P.U. HT</th>
+								<th class="py-3 px-4 text-right text-[11px] uppercase tracking-wider font-semibold text-slate-400">HT</th>
+								<th class="py-3 px-4 text-right text-[11px] uppercase tracking-wider font-semibold text-slate-400">TVA</th>
+								<th class="py-3 px-4 text-right text-[11px] uppercase tracking-wider font-semibold text-slate-400">TTC</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							{% for ligne in facture.lignes %}
+								<tr class="hover:bg-slate-50/50 transition">
+									<td class="py-3 px-4 font-medium text-slate-700">{{ ligne.designation }}</td>
+									<td class="py-3 px-4 text-slate-400">{{ ligne.reference ?? '-' }}</td>
+									<td class="py-3 px-4 text-right text-slate-600">{{ ligne.quantite }}</td>
+									<td class="py-3 px-4 text-slate-400">{{ ligne.unite ?? '-' }}</td>
+									<td class="py-3 px-4 text-right text-slate-600">{{ ligne.prixUnitaireHt|number_format(2, ',', ' ') }} EUR</td>
+									<td class="py-3 px-4 text-right text-slate-600">{{ ligne.montantHt|number_format(2, ',', ' ') }} EUR</td>
+									<td class="py-3 px-4 text-right text-slate-500">{{ ligne.montantTva|number_format(2, ',', ' ') }} EUR</td>
+									<td class="py-3 px-4 text-right font-semibold text-slate-800">{{ ligne.montantTtc|number_format(2, ',', ' ') }} EUR</td>
 								</tr>
-							</thead>
-							<tbody class="divide-y divide-gray-200">
-								{% for ligne in facture.lignes %}
-									<tr>
-										<td class="py-3 px-4 text-sm">{{ ligne.designation }}</td>
-										<td class="py-3 px-4 text-sm">{{ ligne.reference ?? '-' }}</td>
-										<td class="py-3 px-4 text-right text-sm">{{ ligne.quantite }}</td>
-										<td class="py-3 px-4 text-sm">{{ ligne.unite ?? '-' }}</td>
-										<td class="py-3 px-4 text-right text-sm">{{ ligne.prixUnitaireHt|number_format(2, ',', ' ') }}
-											€</td>
-										<td class="py-3 px-4 text-right text-sm">{{ ligne.montantHt|number_format(2, ',', ' ') }}
-											€</td>
-										<td class="py-3 px-4 text-right text-sm">{{ ligne.montantTva|number_format(2, ',', ' ') }}
-											€</td>
-										<td class="py-3 px-4 text-right text-sm">{{ ligne.montantTtc|number_format(2, ',', ' ') }}
-											€</td>
-									</tr>
-								{% endfor %}
-							</tbody>
-						</table>
-					{% else %}
-						<p>Aucune ligne de facture disponible.</p>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			{% else %}
+				<p class="text-sm text-slate-400 italic">Aucune ligne de facture.</p>
+			{% endif %}
+		</div>
+
+		{# Divider #}
+		<div class="mx-10 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+
+		{# Totals + Payment #}
+		<div class="px-10 py-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+			<div>
+				<p class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mb-3">Conditions de paiement</p>
+				<div class="space-y-1.5 text-sm text-slate-500">
+					<p>Mode de reglement: {{ facture.modePaiement ?? '-' }}</p>
+					<p>IBAN: FR76 3000 6000 0112 3456 7890 189</p>
+					<p>BIC: BNPAFRPPXXX</p>
+					{% if facture.dateEcheance %}
+						<p>Echeance: {{ facture.dateEcheance|date('d/m/Y') }}</p>
 					{% endif %}
 				</div>
 			</div>
-
-			<div class="divider"></div>
-
-			<!-- Totaux + Paiement -->
-			<div class="px-8 py-4">
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-					<div>
-						<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-gray-500 inline-block">CONDITIONS DE PAIEMENT</h2>
-						<div class="space-y-1">
-							<p>Mode de règlement:
-								{{ facture.modePaiement ?? '-' }}</p>
-							<p>IBAN: FR76 3000 6000 0112 3456 7890 189</p>
-							<p>BIC: BNPAFRPPXXX</p>
-							<p>Date d'échéance:
-								{{ facture.dateEcheance ? facture.dateEcheance|date('d/m/Y') : '-' }}</p>
+			<div>
+				{% set totalHT = 0 %}
+				{% set totalTVA = 0 %}
+				{% set totalTTC = 0 %}
+				{% for ligne in facture.lignes %}
+					{% set totalHT = totalHT + ligne.montantHt %}
+					{% set totalTVA = totalTVA + ligne.montantTva %}
+					{% set totalTTC = totalTTC + ligne.montantTtc %}
+				{% endfor %}
+				<div class="rounded-xl bg-gradient-to-br from-slate-50 to-indigo-50/50 border border-slate-200 p-5">
+					<div class="space-y-2">
+						<div class="flex justify-between text-sm">
+							<span class="text-slate-500">Total HT</span>
+							<span class="font-medium text-slate-700">{{ totalHT|number_format(2, ',', ' ') }} EUR</span>
 						</div>
-					</div>
-					<div>
-						{% set totalHT = 0 %}
-						{% set totalTVA = 0 %}
-						{% set totalTTC = 0 %}
-						{% for ligne in facture.lignes %}
-							{% set totalHT = totalHT + ligne.montantHt %}
-							{% set totalTVA = totalTVA + ligne.montantTva %}
-							{% set totalTTC = totalTTC + ligne.montantTtc %}
-						{% endfor %}
-						<table class="w-full">
-							<tbody>
-								<tr class="total-row">
-									<th class="py-2 px-4 text-left font-medium">Total HT</th>
-									<td class="py-2 px-4 text-right">{{ totalHT|number_format(2, ',', ' ') }}
-										€</td>
-								</tr>
-								<tr class="total-row">
-									<th class="py-2 px-4 text-left font-medium">Total TVA</th>
-									<td class="py-2 px-4 text-right">{{ totalTVA|number_format(2, ',', ' ') }}
-										€</td>
-								</tr>
-								<tr class="bg-gray-100">
-									<th class="py-3 px-4 text-left font-bold">Total TTC</th>
-									<td class="py-3 px-4 text-right font-bold">{{ totalTTC|number_format(2, ',', ' ') }}
-										€</td>
-								</tr>
-							</tbody>
-						</table>
+						<div class="flex justify-between text-sm">
+							<span class="text-slate-500">Total TVA</span>
+							<span class="font-medium text-slate-700">{{ totalTVA|number_format(2, ',', ' ') }} EUR</span>
+						</div>
+						<div class="h-px bg-slate-200 my-1"></div>
+						<div class="flex justify-between">
+							<span class="font-bold text-slate-800">Total TTC</span>
+							<span class="text-xl font-bold text-indigo-600">{{ totalTTC|number_format(2, ',', ' ') }} EUR</span>
+						</div>
 					</div>
 				</div>
 			</div>
-
-			<!-- Footer -->
-			<footer class="px-8 py-6 bg-gray-50 text-center footer-text text-sm">
-				<p>Merci pour votre confiance. Pour toute question, contactez-nous à
-					{{ facture.fournisseur.email ?? 'contact@oroya.fr' }}</p>
-				<p class="mt-2">Facture générée automatiquement - Oroya</p>
-				<div class="mt-4 no-print">
-					<button onclick="window.print()" class="bg-gray-500 hover:bg-darkgreen-600 text-white px-4 py-2 rounded-lg inline-flex items-center">
-						<i data-feather="printer" class="mr-2"></i>
-						Imprimer la facture
-					</button>
-				</div>
-			</footer>
 		</div>
 
-		<script>
-			feather.replace();
-		</script>
-	</body>
+		{# Footer #}
+		<footer class="px-10 py-6 bg-slate-50 text-center text-xs text-slate-400 border-t border-slate-100">
+			<p>Merci pour votre confiance. Contact : {{ facture.fournisseur.email ?? 'contact@oroya.fr' }}</p>
+			<p class="mt-1">Facture generee automatiquement &mdash; Oroya</p>
+		</footer>
+	</div>
+
+	<script>
+		lucide.createIcons();
+		/* GSAP entrance animation */
+		gsap.from('.invoice-card', { opacity: 0, y: 30, duration: 0.6, ease: 'power3.out' });
+		gsap.from('.invoice-card header', { opacity: 0, y: -20, duration: 0.5, delay: 0.2, ease: 'power2.out' });
+		gsap.from('.invoice-card table tbody tr', { opacity: 0, x: -10, duration: 0.3, stagger: 0.05, delay: 0.4, ease: 'power2.out' });
+	</script>
+</body>
 </html>

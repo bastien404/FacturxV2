@@ -1,0 +1,11 @@
+{{ form_start(form) }}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {{ form_widget(form) }}
+    </div>
+    <div class="mt-8 flex justify-end">
+        <button class="btn btn-primary btn-lg">
+            <i data-lucide="check" class="w-5 h-5"></i>
+            {{ button_label|default('Enregistrer le Client') }}
+        </button>
+    </div>
+{{ form_end(form) }}

@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc -l /c/Users/Stagiaire/Documents/Bastien/PROJETS/FacturxV2/src/**/*.php)"
+      "Bash(wc -l /c/Users/Stagiaire/Documents/Bastien/PROJETS/FacturxV2/src/**/*.php)",
+      "Bash(php -l src/Service/FacturxService.php)",
+      "Bash(php -l src/Entity/Facture.php)",
+      "Bash(php -l src/Entity/FactureLigne.php)",
+      "Bash(php -l src/Entity/PaymentMeans.php)",
+      "Bash(php -l src/Form/FactureType.php)",
+      "Bash(php -l src/Entity/Setting.php)",
+      "Bash(php -l src/Repository/SettingRepository.php)",
+      "Bash(php -l src/Controller/AdminController.php)",
+      "Bash(php bin/console doctrine:query:sql \"SELECT id, facture_id, designation, montant_ht, montant_ttc FROM facture_ligne\")",
+      "Bash(php bin/console doctrine:query:sql \"SELECT id, facture_id, fournisseur_id, acheteur_id FROM facture\")",
+      "Bash(php:*)",
+      "Bash(curl:*)"
     ]
   },
   "outputStyle": "Explanatory"

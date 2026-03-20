@@ -1,278 +1,333 @@
 {% extends 'base.html.twig' %}
-{% block title %}Créer une facture
-{% endblock %}
+{% block title %}Nouvelle facture{% endblock %}
+{% block nav_new %}active{% endblock %}
+
 {% block body %}
-	<h1 class="text-2xl font-bold mb-6">Créer une nouvelle facture</h1>
 
-	<form
-		method="post" id="factureForm" class="space-y-6">
-		{# === FOURNISSEUR === #}
-		<h2 class="text-lg font-semibold mt-4">Fournisseur</h2>
-		<select id="select-fournisseur" name="fournisseur_id" class="border rounded p-2 w-full">
-			<option value="">-- Sélectionner un fournisseur --</option>
-			{% for client in clients %}
-				<option value="{{ client.id }}">{{ client.nom }}
-					({{ client.email }})</option>
-			{% endfor %}
-			<option value="new">+ Nouveau fournisseur</option>
-		</select>
-
-		<div id="fournisseur-fields" class="hidden mt-2 grid grid-cols-2 gap-4">
-			<input type="text" name="nomFournisseur" placeholder="Nom" class="border rounded p-2 w-full">
-			<input type="text" name="sirenFournisseur" placeholder="SIREN" class="border rounded p-2 w-full">
-			<input type="text" name="siretFournisseur" placeholder="SIRET" class="border rounded p-2 w-full">
-			<input type="text" name="tvaFournisseur" placeholder="Numéro TVA" class="border rounded p-2 w-full">
-			<input type="email" name="emailFournisseur" placeholder="Email" class="border rounded p-2 w-full">
-			<input type="text" name="adresseFournisseur" placeholder="Adresse" class="border rounded p-2 w-full">
-			<input type="text" name="villeFournisseur" placeholder="Ville" class="border rounded p-2 w-full">
-			<input type="text" name="codePostalFournisseur" placeholder="Code Postal" class="border rounded p-2 w-full">
-			<select name="codePaysFournisseur" class="border rounded p-2 w-full">
-				<option value="">-- Pays --</option>
-				{% for code, pays in countries %}
-					<option value="{{ code }}">{{ pays }}</option>
-				{% endfor %}
-			</select>
+	{# ─── Header ─── #}
+	<div class="flex items-center justify-between mb-8" data-aos="fade-down">
+		<div>
+			<h1 class="text-2xl font-bold text-slate-800">Nouvelle facture</h1>
+			<p class="text-sm text-slate-400 mt-1">Remplissez les informations ci-dessous</p>
 		</div>
+		<a href="{{ path('facture_index') }}" class="btn btn-ghost">
+			<i data-lucide="arrow-left" class="w-4 h-4"></i> Retour
+		</a>
+	</div>
 
-		<h2 class="text-lg font-semibold mt-6">Acheteur</h2>
-		<select id="select-acheteur" name="acheteur_id" class="border rounded p-2 w-full">
-			<option value="">-- Sélectionner un acheteur --</option>
-			{% for client in clients %}
-				<option value="{{ client.id }}">{{ client.nom }}
-					({{ client.email }})</option>
-			{% endfor %}
-			<option value="new">+ Nouveau acheteur</option>
-		</select>
+	<form method="post" id="factureForm">
 
-		<div id="acheteur-fields" class="hidden mt-2 grid grid-cols-2 gap-4">
-			<input type="text" name="nomAcheteur" placeholder="Nom" class="border rounded p-2 w-full">
-			<input type="text" name="sirenAcheteur" placeholder="SIREN" class="border rounded p-2 w-full">
-			<input type="text" name="tvaAcheteur" placeholder="Numéro TVA" class="border rounded p-2 w-full">
-			<input type="email" name="emailAcheteur" placeholder="Email" class="border rounded p-2 w-full">
-			<input type="text" name="adresseAcheteur" placeholder="Adresse" class="border rounded p-2 w-full">
-			<input type="text" name="villeAcheteur" placeholder="Ville" class="border rounded p-2 w-full">
-			<input type="text" name="codePostalAcheteur" placeholder="Code Postal" class="border rounded p-2 w-full">
-			<select name="codePaysAcheteur" class="border rounded p-2 w-full">
-				<option value="">-- Pays --</option>
-				{% for code, pays in countries %}
-					<option value="{{ code }}">{{ pays }}</option>
-				{% endfor %}
-			</select>
-		</div>
-
-
-		<hr/>
-
-		{# === INFOS FACTURE === #}
-		<h2 class="text-lg font-semibold mt-4">Informations de la facture</h2>
-		<div class="grid grid-cols-2 gap-4">
-			<input type="text" name="numeroFacture" placeholder="Numéro de facture" class="border rounded p-2 w-full" required/>
-			<input type="date" name="dateFacture" class="border rounded p-2 w-full" required/>
-			<select name="devise" class="border rounded p-2 w-full" required>
-				<option value="">-- Devise --</option>
-				{% for code, label in currencies %}
-					<option value="{{ code }}">{{ label }}</option>
-				{% endfor %}
-			</select>
-			<input type="text" name="commandeAcheteur" placeholder="Commande acheteur" class="border rounded p-2 w-full"/>
-			<input type="date" name="dateEcheance" class="border rounded p-2 w-full"/>
-			<input type="date" name="dateLivraison" class="border rounded p-2 w-full"/>
-			<select name="modePaiement" class="border rounded p-2 w-full" required>
-				{% for code, label in payment_means %}
-					<option value="{{ code }}">{{ label }}</option>
-				{% endfor %}
-			</select>
-			<input type="text" name="referencePaiement" placeholder="Référence paiement" class="border rounded p-2 w-full"/>
-		</div>
-
-		<hr/>
-
-		{# === LIGNES DE FACTURE === #}
-		<h2 class="text-lg font-semibold mt-4">Lignes de facture</h2>
-		<div id="lignes-container" class="space-y-3"></div>
-		<template id="ligneTemplate">
-			<div class="ligne-facture grid grid-cols-9 gap-2 items-center border-b pb-2">
-				<input type="text" name="__NAME__[designation]" placeholder="Désignation" class="col-span-2 border rounded px-2 py-1" required/>
-				<input type="number" step="0.01" name="__NAME__[quantite]" placeholder="Qté" class="border rounded px-2 py-1" required/>
-				<input type="text" name="__NAME__[unite]" placeholder="Unité" class="border rounded px-2 py-1"/>
-				<input type="number" step="0.01" name="__NAME__[prixUnitaireHT]" placeholder="Prix HT" class="border rounded px-2 py-1" required/>
-				<input type="number" step="0.01" name="__NAME__[tauxTVA]" placeholder="TVA %" class="border rounded px-2 py-1" value="20"/>
-				<input type="number" readonly name="__NAME__[montantHT]" placeholder="HT" class="border rounded px-2 py-1 bg-gray-100"/>
-				<input type="number" readonly name="__NAME__[montantTVA]" placeholder="TVA" class="border rounded px-2 py-1 bg-gray-100"/>
-				<input type="number" readonly name="__NAME__[montantTTC]" placeholder="TTC" class="border rounded px-2 py-1 bg-gray-100"/>
-				<button type="button" class="removeLigne text-red-500 font-bold">
-					X
-				</button>
+		{# ═══ FOURNISSEUR ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="0">
+			<div class="form-section-title">
+				<i data-lucide="building-2" class="w-5 h-5"></i> Fournisseur
 			</div>
-		</template>
-		<button type="button" id="addLigne" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded">
-			+ Ajouter ligne
-		</button>
-
-		<div class="mt-4 border-t pt-3">
-			<p>
-				<strong>Total HT :</strong>
-				<span id="totalHT">0.00</span>
-				€
-			</p>
-			<p>
-				<strong>Total TVA :</strong>
-				<span id="totalTVA">0.00</span>
-				€
-			</p>
-			<p>
-				<strong>Total TTC :</strong>
-				<span id="totalTTC">0.00</span>
-				€
-			</p>
-		</div>
-
-		<hr/>
-
-		{# === ALLOWANCES / CHARGES === #}
-		<h2 class="text-lg font-semibold mt-4">Remises / Charges</h2>
-		<div id="allowances-container" class="space-y-3"></div>
-		<template id="allowTemplate">
-			<div class="grid grid-cols-5 gap-2 items-center">
-				<input type="number" step="0.01" name="__NAME__[amount]" placeholder="Montant" class="border rounded p-2 w-full"/>
-				<input type="number" step="0.01" name="__NAME__[taxRate]" placeholder="Taux TVA (%)" class="border rounded p-2 w-full"/>
-				<select name="__NAME__[isCharge]" class="border rounded p-2 w-full">
-					<option value="0">Remise</option>
-					<option value="1">Charge</option>
+			<select id="select-fournisseur" name="fournisseur_id" class="form-input">
+				<option value="">-- Selectionner un fournisseur --</option>
+				{% for client in clients %}
+					<option value="{{ client.id }}">{{ client.nom }} ({{ client.email }})</option>
+				{% endfor %}
+				<option value="new">+ Nouveau fournisseur</option>
+			</select>
+			<div id="fournisseur-fields" class="hidden mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+				<input type="text" name="nomFournisseur" placeholder="Nom" class="form-input">
+				<input type="text" name="sirenFournisseur" placeholder="SIREN" class="form-input">
+				<input type="text" name="siretFournisseur" placeholder="SIRET" class="form-input">
+				<input type="text" name="tvaFournisseur" placeholder="Numero TVA" class="form-input">
+				<input type="email" name="emailFournisseur" placeholder="Email" class="form-input">
+				<input type="text" name="adresseFournisseur" placeholder="Adresse" class="form-input">
+				<input type="text" name="villeFournisseur" placeholder="Ville" class="form-input">
+				<input type="text" name="codePostalFournisseur" placeholder="Code Postal" class="form-input">
+				<select name="codePaysFournisseur" class="form-input">
+					<option value="">-- Pays --</option>
+					{% for code, pays in countries %}
+						<option value="{{ code }}">{{ pays }}</option>
+					{% endfor %}
 				</select>
-				<input type="text" name="__NAME__[reason]" placeholder="Raison" class="border rounded p-2 w-full"/>
-				<button type="button" class="removeAllowance text-red-500 font-bold">
-					X
-				</button>
 			</div>
-		</template>
-		<button type="button" id="addAllowance" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded">
-			+ Ajouter
-		</button>
+		</div>
 
-		<hr/>
+		{# ═══ ACHETEUR ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="60">
+			<div class="form-section-title">
+				<i data-lucide="user" class="w-5 h-5"></i> Acheteur
+			</div>
+			<select id="select-acheteur" name="acheteur_id" class="form-input">
+				<option value="">-- Selectionner un acheteur --</option>
+				{% for client in clients %}
+					<option value="{{ client.id }}">{{ client.nom }} ({{ client.email }})</option>
+				{% endfor %}
+				<option value="new">+ Nouvel acheteur</option>
+			</select>
+			<div id="acheteur-fields" class="hidden mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+				<input type="text" name="nomAcheteur" placeholder="Nom" class="form-input">
+				<input type="text" name="sirenAcheteur" placeholder="SIREN" class="form-input">
+				<input type="text" name="tvaAcheteur" placeholder="Numero TVA" class="form-input">
+				<input type="email" name="emailAcheteur" placeholder="Email" class="form-input">
+				<input type="text" name="adresseAcheteur" placeholder="Adresse" class="form-input">
+				<input type="text" name="villeAcheteur" placeholder="Ville" class="form-input">
+				<input type="text" name="codePostalAcheteur" placeholder="Code Postal" class="form-input">
+				<select name="codePaysAcheteur" class="form-input">
+					<option value="">-- Pays --</option>
+					{% for code, pays in countries %}
+						<option value="{{ code }}">{{ pays }}</option>
+					{% endfor %}
+				</select>
+			</div>
+		</div>
 
-		{# === MOYENS DE PAIEMENT === #}
-		<h2 class="text-lg font-semibold mt-4">Moyens de paiement</h2>
-		<div id="payments-container" class="space-y-3"></div>
-		<template id="paymentTemplate">
-			<div class="grid grid-cols-3 gap-2 items-center">
-				<select name="__NAME__[code]" class="border rounded p-2 w-full">
+		{# ═══ INFOS FACTURE ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="120">
+			<div class="form-section-title">
+				<i data-lucide="file-text" class="w-5 h-5"></i> Informations de la facture
+			</div>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+				<input type="text" name="numeroFacture" placeholder="Numero de facture" class="form-input" required/>
+				<input type="date" name="dateFacture" class="form-input" required/>
+				<select name="devise" class="form-input" required>
+					<option value="">-- Devise --</option>
+					{% for code, label in currencies %}
+						<option value="{{ code }}">{{ label }}</option>
+					{% endfor %}
+				</select>
+				<input type="text" name="commandeAcheteur" placeholder="Commande acheteur" class="form-input"/>
+				<div>
+					<label class="text-xs text-slate-400 block mb-1">Date d'echeance</label>
+					<input type="date" name="dateEcheance" class="form-input"/>
+				</div>
+				<div>
+					<label class="text-xs text-slate-400 block mb-1">Date de livraison</label>
+					<input type="date" name="dateLivraison" class="form-input"/>
+				</div>
+				<select name="modePaiement" class="form-input" required>
 					{% for code, label in payment_means %}
 						<option value="{{ code }}">{{ label }}</option>
 					{% endfor %}
 				</select>
-				<input type="text" name="__NAME__[information]" placeholder="Information (IBAN, etc.)" class="border rounded p-2 w-full"/>
-				<button type="button" class="removePayment text-red-500 font-bold">
-					X
-				</button>
+				<input type="text" name="referencePaiement" placeholder="Reference paiement" class="form-input"/>
 			</div>
-		</template>
-		<button type="button" id="addPayment" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded">
-			+ Ajouter moyen de paiement
-		</button>
-
-		<hr/>
-
-		<div class="mt-4">
-			<label class="block font-semibold">Commentaire</label>
-			<textarea name="commentaire" class="border rounded p-2 w-full"></textarea>
 		</div>
 
-		<div class="mt-6">
-			<button type="submit" class="px-6 py-2 bg-green-600 text-white rounded font-bold">
-				Créer la facture
+		{# ═══ LIGNES DE FACTURE ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="180">
+			<div class="form-section-title">
+				<i data-lucide="list" class="w-5 h-5"></i> Lignes de facture
+			</div>
+			<div id="lignes-container" class="space-y-3 overflow-x-auto"></div>
+			<template id="ligneTemplate">
+				<div class="ligne-facture flex items-center gap-2 p-3 bg-slate-50/80 rounded-xl border border-slate-100" style="min-width:780px">
+					<input type="text" name="__NAME__[designation]" placeholder="Designation" class="form-input" style="flex:2.5" required/>
+					<input type="number" step="0.01" name="__NAME__[quantite]" placeholder="Qte" class="form-input" style="flex:1" required/>
+					<input type="text" name="__NAME__[unite]" placeholder="Unite" class="form-input" style="flex:1"/>
+					<input type="number" step="0.01" name="__NAME__[prixUnitaireHT]" placeholder="Prix HT" class="form-input" style="flex:1.2" required/>
+					<input type="number" step="0.01" name="__NAME__[tauxTVA]" placeholder="TVA %" class="form-input" style="flex:1" value="20"/>
+					<input type="number" readonly name="__NAME__[montantHT]" placeholder="HT" class="form-input" style="flex:1.2" readonly/>
+					<input type="number" readonly name="__NAME__[montantTVA]" placeholder="TVA" class="form-input" style="flex:1.2" readonly/>
+					<input type="number" readonly name="__NAME__[montantTTC]" placeholder="TTC" class="form-input" style="flex:1.2" readonly/>
+					<button type="button" class="removeLigne btn-remove flex-shrink-0">&times;</button>
+				</div>
+			</template>
+			<button type="button" id="addLigne" class="btn btn-primary btn-sm mt-3">
+				<i data-lucide="plus" class="w-4 h-4"></i> Ajouter ligne
 			</button>
+
+			{# ─── Totals ─── #}
+			<div class="totals-box mt-5 grid grid-cols-3 gap-4 text-right">
+				<div>
+					<span class="text-xs text-slate-400 block">Total HT</span>
+					<span id="totalHT" class="total-value text-lg text-slate-700">0.00</span>
+					<span class="text-sm text-slate-400">EUR</span>
+				</div>
+				<div>
+					<span class="text-xs text-slate-400 block">Total TVA</span>
+					<span id="totalTVA" class="total-value text-lg text-slate-700">0.00</span>
+					<span class="text-sm text-slate-400">EUR</span>
+				</div>
+				<div>
+					<span class="text-xs text-slate-400 block">Total TTC</span>
+					<span id="totalTTC" class="total-value text-xl text-indigo-600">0.00</span>
+					<span class="text-sm text-indigo-400">EUR</span>
+				</div>
+			</div>
+		</div>
+
+		{# ═══ ALLOWANCES / CHARGES ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="240">
+			<div class="form-section-title">
+				<i data-lucide="percent" class="w-5 h-5"></i> Remises / Charges
+				<span class="text-xs text-slate-400 font-normal ml-1">(optionnel)</span>
+			</div>
+			<div id="allowances-container" class="space-y-3 overflow-x-auto"></div>
+			<template id="allowTemplate">
+				<div class="allow-row flex items-center gap-2 p-3 bg-slate-50/80 rounded-xl border border-slate-100" style="min-width:500px">
+					<input type="number" step="0.01" name="__NAME__[amount]" placeholder="Montant" class="form-input" style="flex:1.2"/>
+					<input type="number" step="0.01" name="__NAME__[taxRate]" placeholder="Taux TVA (%)" class="form-input" style="flex:1"/>
+					<select name="__NAME__[isCharge]" class="form-input" style="flex:1">
+						<option value="0">Remise</option>
+						<option value="1">Charge</option>
+					</select>
+					<input type="text" name="__NAME__[reason]" placeholder="Raison" class="form-input" style="flex:1.5"/>
+					<button type="button" class="removeAllowance btn-remove flex-shrink-0">&times;</button>
+				</div>
+			</template>
+			<button type="button" id="addAllowance" class="btn btn-primary btn-sm mt-3">
+				<i data-lucide="plus" class="w-4 h-4"></i> Ajouter
+			</button>
+		</div>
+
+		{# ═══ MOYENS DE PAIEMENT ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="300">
+			<div class="form-section-title">
+				<i data-lucide="credit-card" class="w-5 h-5"></i> Moyens de paiement
+				<span class="text-xs text-slate-400 font-normal ml-1">(optionnel)</span>
+			</div>
+			<div id="payments-container" class="space-y-3"></div>
+			<template id="paymentTemplate">
+				<div class="pay-row grid grid-cols-3 gap-2 items-center p-3 bg-slate-50/80 rounded-xl border border-slate-100">
+					<select name="__NAME__[code]" class="form-input">
+						{% for code, label in payment_means %}
+							<option value="{{ code }}">{{ label }}</option>
+						{% endfor %}
+					</select>
+					<input type="text" name="__NAME__[information]" placeholder="IBAN, info..." class="form-input"/>
+					<button type="button" class="removePayment btn-remove">&times;</button>
+				</div>
+			</template>
+			<button type="button" id="addPayment" class="btn btn-primary btn-sm mt-3">
+				<i data-lucide="plus" class="w-4 h-4"></i> Moyen de paiement
+			</button>
+		</div>
+
+		{# ═══ COMMENTAIRE ═══ #}
+		<div class="form-section" data-aos="fade-up" data-aos-delay="360">
+			<div class="form-section-title">
+				<i data-lucide="message-square" class="w-5 h-5"></i> Commentaire
+			</div>
+			<textarea name="commentaire" rows="3" class="form-input" placeholder="Note libre..."></textarea>
+		</div>
+
+		{# ═══ SUBMIT ═══ #}
+		<div class="flex gap-4 pt-2 pb-8" data-aos="fade-up" data-aos-delay="400">
+			<button type="submit" class="btn btn-success btn-lg flex-1">
+				<i data-lucide="check" class="w-5 h-5"></i> Creer la facture
+			</button>
+			<a href="{{ path('facture_index') }}" class="btn btn-ghost btn-lg">Annuler</a>
 		</div>
 	</form>
 
-	<script>
-		document.addEventListener("DOMContentLoaded", () => {
+{% endblock %}
 
-document.getElementById('select-fournisseur').addEventListener('change', e => {
-document.getElementById('fournisseur-fields').classList.toggle('hidden', e.target.value !== 'new');
-});
-document.getElementById('select-acheteur').addEventListener('change', e => {
-document.getElementById('acheteur-fields').classList.toggle('hidden', e.target.value !== 'new');
-});
-// Lignes
-const lignesContainer = document.getElementById("lignes-container");
-const ligneTemplate = document.getElementById("ligneTemplate").content;
-let ligneIndex = 0;
+{% block javascripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+	lucide.createIcons();
 
-function calculeLigne(ligne) {
-const qte = parseFloat(ligne.querySelector('[name$="[quantite]"]').value) || 0;
-const pu = parseFloat(ligne.querySelector('[name$="[prixUnitaireHT]"]').value) || 0;
-const tva = parseFloat(ligne.querySelector('[name$="[tauxTVA]"]').value) || 0;
-const ht = qte * pu;
-const montantTVA = (ht * tva) / 100;
-const ttc = ht + montantTVA;
-ligne.querySelector('[name$="[montantHT]"]').value = ht.toFixed(2);
-ligne.querySelector('[name$="[montantTVA]"]').value = montantTVA.toFixed(2);
-ligne.querySelector('[name$="[montantTTC]"]').value = ttc.toFixed(2);
-calculeTotaux();
-}
+	/* ─── Show/Hide new fournisseur/acheteur fields ─── */
+	document.getElementById('select-fournisseur').addEventListener('change', e => {
+		const fields = document.getElementById('fournisseur-fields');
+		const show = e.target.value === 'new';
+		fields.classList.toggle('hidden', !show);
+		if (show) gsap.from(fields, { opacity: 0, y: -10, duration: 0.3, ease: 'power2.out' });
+	});
+	document.getElementById('select-acheteur').addEventListener('change', e => {
+		const fields = document.getElementById('acheteur-fields');
+		const show = e.target.value === 'new';
+		fields.classList.toggle('hidden', !show);
+		if (show) gsap.from(fields, { opacity: 0, y: -10, duration: 0.3, ease: 'power2.out' });
+	});
 
-function calculeTotaux() {
-let ht = 0,
-tva = 0,
-ttc = 0;
-document.querySelectorAll(".ligne-facture").forEach((l) => {
-ht += parseFloat(l.querySelector('[name$="[montantHT]"]').value) || 0;
-tva += parseFloat(l.querySelector('[name$="[montantTVA]"]').value) || 0;
-ttc += parseFloat(l.querySelector('[name$="[montantTTC]"]').value) || 0;
-});
-document.getElementById("totalHT").innerText = ht.toFixed(2);
-document.getElementById("totalTVA").innerText = tva.toFixed(2);
-document.getElementById("totalTTC").innerText = ttc.toFixed(2);
-}
+	/* ─── Lignes ─── */
+	const lignesContainer = document.getElementById("lignes-container");
+	const ligneTemplate = document.getElementById("ligneTemplate").content;
+	let ligneIndex = 0;
 
-function addLigne() {
-const fragment = document.importNode(ligneTemplate, true);
-fragment.querySelectorAll("input").forEach((input) => {
-input.name = input.name.replace("__NAME__", "lignes[" + ligneIndex + "]");
-if (["quantite", "prixUnitaireHT", "tauxTVA"].some((k) => input.name.includes(k))) {
-input.addEventListener("input", (e) => {
-const ligne = e.target.closest(".ligne-facture");
-calculeLigne(ligne);
-});
-}
-});
-fragment.querySelector(".removeLigne").addEventListener("click", (e) => e.target.closest(".ligne-facture").remove());
-lignesContainer.appendChild(fragment);
-ligneIndex++;
-}
+	function calculeLigne(ligne) {
+		const qte = parseFloat(ligne.querySelector('[name$="[quantite]"]').value) || 0;
+		const pu = parseFloat(ligne.querySelector('[name$="[prixUnitaireHT]"]').value) || 0;
+		const tva = parseFloat(ligne.querySelector('[name$="[tauxTVA]"]').value) || 0;
+		const ht = qte * pu;
+		const montantTVA = (ht * tva) / 100;
+		const ttc = ht + montantTVA;
+		ligne.querySelector('[name$="[montantHT]"]').value = ht.toFixed(2);
+		ligne.querySelector('[name$="[montantTVA]"]').value = montantTVA.toFixed(2);
+		ligne.querySelector('[name$="[montantTTC]"]').value = ttc.toFixed(2);
+		calculeTotaux();
+	}
 
-document.getElementById("addLigne").addEventListener("click", addLigne);
-addLigne();
+	function calculeTotaux() {
+		let ht = 0, tva = 0, ttc = 0;
+		document.querySelectorAll(".ligne-facture").forEach((l) => {
+			ht += parseFloat(l.querySelector('[name$="[montantHT]"]').value) || 0;
+			tva += parseFloat(l.querySelector('[name$="[montantTVA]"]').value) || 0;
+			ttc += parseFloat(l.querySelector('[name$="[montantTTC]"]').value) || 0;
+		});
 
-// Allowances / Charges
-const allowContainer = document.getElementById("allowances-container");
-const allowTemplate = document.getElementById("allowTemplate").content;
-let allowIndex = 0;
-document.getElementById("addAllowance").addEventListener("click", () => {
-const fragment = document.importNode(allowTemplate, true);
-fragment.querySelectorAll("input, select").forEach((input) => {
-input.name = input.name.replace("__NAME__", "allowances[" + allowIndex + "]");
-});
-fragment.querySelector(".removeAllowance").addEventListener("click", (e) => e.target.closest("div").remove());
-allowContainer.appendChild(fragment);
-allowIndex++;
-});
+		/* Animate totals with GSAP */
+		gsap.to('#totalHT', { textContent: ht.toFixed(2), duration: 0.3, snap: { textContent: 0.01 } });
+		gsap.to('#totalTVA', { textContent: tva.toFixed(2), duration: 0.3, snap: { textContent: 0.01 } });
+		gsap.to('#totalTTC', { textContent: ttc.toFixed(2), duration: 0.3, snap: { textContent: 0.01 } });
+	}
 
-// Payments
-const payContainer = document.getElementById("payments-container");
-const payTemplate = document.getElementById("paymentTemplate").content;
-let payIndex = 0;
-document.getElementById("addPayment").addEventListener("click", () => {
-const fragment = document.importNode(payTemplate, true);
-fragment.querySelectorAll("input, select").forEach((input) => {
-input.name = input.name.replace("__NAME__", "paymentMeans[" + payIndex + "]");
+	function addLigne() {
+		const fragment = document.importNode(ligneTemplate, true);
+		fragment.querySelectorAll("input, select").forEach((input) => {
+			input.name = input.name.replace("__NAME__", "lignes[" + ligneIndex + "]");
+			if (["quantite", "prixUnitaireHT", "tauxTVA"].some((k) => input.name.includes(k))) {
+				input.addEventListener("input", (e) => calculeLigne(e.target.closest(".ligne-facture")));
+			}
+		});
+		fragment.querySelector(".removeLigne").addEventListener("click", (e) => {
+			const row = e.target.closest(".ligne-facture");
+			gsap.to(row, { opacity: 0, height: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { row.remove(); calculeTotaux(); } });
+		});
+		lignesContainer.appendChild(fragment);
+		/* Animate new line in */
+		const newRow = lignesContainer.lastElementChild;
+		gsap.from(newRow, { opacity: 0, y: -10, duration: 0.3, ease: 'power2.out' });
+		ligneIndex++;
+	}
+
+	document.getElementById("addLigne").addEventListener("click", addLigne);
+	addLigne();
+
+	/* ─── Allowances / Charges ─── */
+	const allowContainer = document.getElementById("allowances-container");
+	const allowTemplate = document.getElementById("allowTemplate").content;
+	let allowIndex = 0;
+	document.getElementById("addAllowance").addEventListener("click", () => {
+		const fragment = document.importNode(allowTemplate, true);
+		fragment.querySelectorAll("input, select").forEach((input) => {
+			input.name = input.name.replace("__NAME__", "allowances[" + allowIndex + "]");
+		});
+		fragment.querySelector(".removeAllowance").addEventListener("click", (e) => {
+			const row = e.target.closest(".allow-row");
+			gsap.to(row, { opacity: 0, height: 0, duration: 0.25, onComplete: () => row.remove() });
+		});
+		allowContainer.appendChild(fragment);
+		gsap.from(allowContainer.lastElementChild, { opacity: 0, y: -10, duration: 0.3 });
+		allowIndex++;
+	});
+
+	/* ─── Payments ─── */
+	const payContainer = document.getElementById("payments-container");
+	const payTemplate = document.getElementById("paymentTemplate").content;
+	let payIndex = 0;
+	document.getElementById("addPayment").addEventListener("click", () => {
+		const fragment = document.importNode(payTemplate, true);
+		fragment.querySelectorAll("input, select").forEach((input) => {
+			input.name = input.name.replace("__NAME__", "paymentMeans[" + payIndex + "]");
+		});
+		fragment.querySelector(".removePayment").addEventListener("click", (e) => {
+			const row = e.target.closest(".pay-row");
+			gsap.to(row, { opacity: 0, height: 0, duration: 0.25, onComplete: () => row.remove() });
+		});
+		payContainer.appendChild(fragment);
+		gsap.from(payContainer.lastElementChild, { opacity: 0, y: -10, duration: 0.3 });
+		payIndex++;
+	});
+
+	/* Re-init icons for dynamically added content */
+	lucide.createIcons();
 });
-fragment.querySelector(".removePayment").addEventListener("click", (e) => e.target.closest("div").remove());
-payContainer.appendChild(fragment);
-payIndex++;
-});
-});
-	</script>
+</script>
 {% endblock %}

@@ -1,0 +1,24 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Modifier Client{% endblock %}
+{% block nav_client %}active{% endblock %}
+
+{% block body %}
+    <div class="flex items-center justify-between mb-8" data-aos="fade-down">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Modifier : {{ client.nom }}</h1>
+            <p class="text-sm text-slate-400 mt-1">Mettez à jour les informations du contact Factur-X</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{{ path('app_client_index') }}" class="btn btn-ghost">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                Retour
+            </a>
+            {{ include('client/_delete_form.html.twig') }}
+        </div>
+    </div>
+
+    <div class="glass-card p-8 max-w-4xl mx-auto" data-aos="fade-up">
+        {{ include('client/_form.html.twig', {'button_label': 'Mettre à jour'}) }}
+    </div>
+{% endblock %}

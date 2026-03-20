@@ -1,153 +1,165 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Modifier la Facture
-	{{ facture.numeroFacture }}
-{% endblock %}
+{% block title %}Modifier — {{ facture.numeroFacture }}{% endblock %}
 
 {% block body %}
-	<div class="max-w-5xl mx-auto bg-white shadow rounded-lg p-6 space-y-6">
-		<h1 class="text-2xl font-bold text-gray-800">✏️ Modifier la Facture</h1>
 
-		{{ form_start(form) }}
+	{# ─── Header ─── #}
+	<div class="flex items-center justify-between mb-8" data-aos="fade-down">
+		<div>
+			<h1 class="text-2xl font-bold text-slate-800">Modifier la facture</h1>
+			<p class="text-sm text-slate-400 mt-1">{{ facture.numeroFacture }}</p>
+		</div>
+		<a href="{{ path('facture_index') }}" class="btn btn-ghost">
+			<i data-lucide="arrow-left" class="w-4 h-4"></i> Retour
+		</a>
+	</div>
 
-		{# ---------------- Section Info Facture ---------------- #}
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-gray-100 shadow-sm">
+	{{ form_start(form) }}
+
+	{# ═══ INFOS FACTURE ═══ #}
+	<div class="form-section" data-aos="fade-up" data-aos-delay="0">
+		<div class="form-section-title">
+			<i data-lucide="file-text" class="w-5 h-5"></i> Informations
+		</div>
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 			<div>{{ form_row(form.numeroFacture) }}</div>
 			<div>{{ form_row(form.dateFacture) }}</div>
 			<div>{{ form_row(form.dateEcheance) }}</div>
 			<div>{{ form_row(form.fournisseur) }}</div>
 			<div>{{ form_row(form.acheteur) }}</div>
-			<p>
-				<strong>Total HT :</strong>
-				<span id="totalHT">{{ facture.totalHt }}</span>
-			</p>
-			<p>
-				<strong>Total TTC :</strong>
-				<span id="totalTTC">{{ facture.totalTtc }}</span>
-			</p>
 		</div>
-
-		{# ---------------- Section Lignes de facture ---------------- #}
-		<div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
-			<h2 class="text-xl font-semibold text-gray-700 mb-4">🧾 Lignes de facture</h2>
-
-			<div id="facture-lignes" data-prototype="{{ form_widget(form.lignes.vars.prototype)|e('html_attr') }}" class="space-y-4 bg-gray-50 p-4 rounded">
-				{% for ligneForm in form.lignes %}
-					<div class="ligne-item grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-md shadow-sm bg-gray-100">
-						<div>{{ form_row(ligneForm.designation) }}</div>
-						<div>{{ form_row(ligneForm.reference) }}</div>
-						<div>{{ form_row(ligneForm.quantite) }}</div>
-						<div>{{ form_row(ligneForm.unite) }}</div>
-						<div>{{ form_row(ligneForm.prixUnitaireHT) }}</div>
-						<div>{{ form_row(ligneForm.tauxTVA) }}</div>
-						<div>{{ form_row(ligneForm.montantHT) }}</div>
-						<div>{{ form_row(ligneForm.montantTVA) }}</div>
-						<div>{{ form_row(ligneForm.montantTTC) }}</div>
-						<button type="button" class="remove-ligne bg-red-500 text-white px-3 py-1 rounded mt-2 hover:bg-red-600 col-span-1 md:col-span-4">
-							❌ Supprimer la ligne
-						</button>
-					</div>
-				{% endfor %}
+		<div class="totals-box mt-4 grid grid-cols-2 gap-4 text-right">
+			<div>
+				<span class="text-xs text-slate-400 block">Total HT</span>
+				<span id="totalHT" class="total-value text-lg text-slate-700">{{ facture.totalHt }}</span>
 			</div>
-
-			<button type="button" id="add-ligne" class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-				➕ Ajouter une ligne
-			</button>
+			<div>
+				<span class="text-xs text-slate-400 block">Total TTC</span>
+				<span id="totalTTC" class="total-value text-xl text-indigo-600">{{ facture.totalTtc }}</span>
+			</div>
 		</div>
-
-		{# ---------------- Boutons d'action ---------------- #}
-		<div class="flex space-x-4">
-			<button class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">💾 Enregistrer</button>
-			<a href="{{ path('facture_index') }}" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">↩️ Retour</a>
-		</div>
-
-		{{ form_end(form) }}
 	</div>
 
-	<script>
-		document.addEventListener("DOMContentLoaded", function () {
-let collectionHolder = document.getElementById("facture-lignes");
-let addButton = document.getElementById("add-ligne");
+	{# ═══ LIGNES DE FACTURE ═══ #}
+	<div class="form-section" data-aos="fade-up" data-aos-delay="100">
+		<div class="form-section-title">
+			<i data-lucide="list" class="w-5 h-5"></i> Lignes de facture
+		</div>
+		<div id="facture-lignes" data-prototype="{{ form_widget(form.lignes.vars.prototype)|e('html_attr') }}" class="space-y-4">
+			{% for ligneForm in form.lignes %}
+				<div class="ligne-item grid grid-cols-1 md:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-50/80 border border-slate-100">
+					<div>{{ form_row(ligneForm.designation) }}</div>
+					<div>{{ form_row(ligneForm.reference) }}</div>
+					<div>{{ form_row(ligneForm.quantite) }}</div>
+					<div>{{ form_row(ligneForm.unite) }}</div>
+					<div>{{ form_row(ligneForm.prixUnitaireHT) }}</div>
+					<div>{{ form_row(ligneForm.tauxTVA) }}</div>
+					<div>{{ form_row(ligneForm.montantHT) }}</div>
+					<div>{{ form_row(ligneForm.montantTVA) }}</div>
+					<div>{{ form_row(ligneForm.montantTTC) }}</div>
+					<button type="button" class="remove-ligne btn btn-danger btn-sm col-span-1 md:col-span-4">
+						<i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer la ligne
+					</button>
+				</div>
+			{% endfor %}
+		</div>
+		<button type="button" id="add-ligne" class="btn btn-primary btn-sm mt-4">
+			<i data-lucide="plus" class="w-4 h-4"></i> Ajouter une ligne
+		</button>
+	</div>
 
-collectionHolder.dataset.index = collectionHolder.querySelectorAll(".ligne-item").length;
+	{# ═══ ACTIONS ═══ #}
+	<div class="flex gap-4 pt-2 pb-8" data-aos="fade-up" data-aos-delay="200">
+		<button type="submit" class="btn btn-primary btn-lg flex-1">
+			<i data-lucide="save" class="w-5 h-5"></i> Enregistrer
+		</button>
+		<a href="{{ path('facture_index') }}" class="btn btn-ghost btn-lg">Annuler</a>
+	</div>
 
-function recalcLignes() {
-let totalHT = 0,
-totalTTC = 0;
+	{{ form_end(form) }}
 
-collectionHolder.querySelectorAll(".ligne-item").forEach(function (ligne) {
-let qte = parseFloat(ligne.querySelector("[id$='_quantite']").value) || 0;
-let prix = parseFloat(ligne.querySelector("[id$='_prixUnitaireHT']").value) || 0;
-let tva = parseFloat(ligne.querySelector("[id$='_tauxTVA']").value) || 0;
+{% endblock %}
 
-let ht = qte * prix;
-let tvaMontant = ht * tva / 100;
-let ttc = ht + tvaMontant;
+{% block javascripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+	lucide.createIcons();
 
-let inputHT = ligne.querySelector("[id$='_montantHT']");
-let inputTVA = ligne.querySelector("[id$='_montantTVA']");
-let inputTTC = ligne.querySelector("[id$='_montantTTC']");
-if (inputHT) 
-inputHT.value = ht.toFixed(2);
+	let collectionHolder = document.getElementById("facture-lignes");
+	let addButton = document.getElementById("add-ligne");
 
+	collectionHolder.dataset.index = collectionHolder.querySelectorAll(".ligne-item").length;
 
-if (inputTVA) 
-inputTVA.value = tvaMontant.toFixed(2);
+	function recalcLignes() {
+		let totalHT = 0, totalTTC = 0;
 
+		collectionHolder.querySelectorAll(".ligne-item").forEach(function (ligne) {
+			let qte = parseFloat(ligne.querySelector("[id$='_quantite']")?.value) || 0;
+			let prix = parseFloat(ligne.querySelector("[id$='_prixUnitaireHT']")?.value) || 0;
+			let tva = parseFloat(ligne.querySelector("[id$='_tauxTVA']")?.value) || 0;
 
-if (inputTTC) 
-inputTTC.value = ttc.toFixed(2);
+			let ht = qte * prix;
+			let tvaMontant = ht * tva / 100;
+			let ttc = ht + tvaMontant;
 
+			let inputHT = ligne.querySelector("[id$='_montantHT']");
+			let inputTVA = ligne.querySelector("[id$='_montantTVA']");
+			let inputTTC = ligne.querySelector("[id$='_montantTTC']");
+			if (inputHT) inputHT.value = ht.toFixed(2);
+			if (inputTVA) inputTVA.value = tvaMontant.toFixed(2);
+			if (inputTTC) inputTTC.value = ttc.toFixed(2);
 
+			totalHT += ht;
+			totalTTC += ttc;
+		});
 
-totalHT += ht;
-totalTTC += ttc;
+		gsap.to('#totalHT', { textContent: isNaN(totalHT) ? "0.00" : Number(totalHT).toFixed(2), duration: 0.3, snap: { textContent: 0.01 } });
+		gsap.to('#totalTTC', { textContent: isNaN(totalTTC) ? "0.00" : Number(totalTTC).toFixed(2), duration: 0.3, snap: { textContent: 0.01 } });
+	}
+
+	addButton.addEventListener("click", function () {
+		let prototype = collectionHolder.dataset.prototype;
+		let index = collectionHolder.dataset.index;
+		collectionHolder.dataset.index++;
+
+		let newForm = prototype.replace(/__name__/g, index);
+		let div = document.createElement("div");
+		div.classList.add("ligne-item", "grid", "grid-cols-1", "md:grid-cols-4", "gap-3", "p-4", "rounded-xl", "bg-slate-50/80", "border", "border-slate-100");
+		div.innerHTML = newForm;
+
+		let removeButton = document.createElement("button");
+		removeButton.type = "button";
+		removeButton.className = "remove-ligne btn btn-danger btn-sm col-span-1 md:col-span-4";
+		removeButton.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer la ligne';
+		removeButton.addEventListener("click", function () {
+			gsap.to(div, { opacity: 0, height: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { div.remove(); recalcLignes(); } });
+		});
+		div.appendChild(removeButton);
+		collectionHolder.appendChild(div);
+
+		gsap.from(div, { opacity: 0, y: -10, duration: 0.3, ease: 'power2.out' });
+
+		div.querySelectorAll("input").forEach(function (input) {
+			input.addEventListener("input", recalcLignes);
+		});
+
+		lucide.createIcons();
+		recalcLignes();
+	});
+
+	document.querySelectorAll(".remove-ligne").forEach(function (btn) {
+		btn.addEventListener("click", function () {
+			const item = btn.closest(".ligne-item");
+			gsap.to(item, { opacity: 0, height: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { item.remove(); recalcLignes(); } });
+		});
+	});
+
+	collectionHolder.querySelectorAll("input").forEach(function (input) {
+		input.addEventListener("input", recalcLignes);
+	});
+
+	recalcLignes();
 });
-
-document.getElementById('totalHT').innerText = isNaN(totalHT) ? "0.00" : Number(totalHT).toFixed(2);
-document.getElementById('totalTTC').innerText = isNaN(totalTTC) ? "0.00" : Number(totalTTC).toFixed(2);
-}
-
-addButton.addEventListener("click", function () {
-let prototype = collectionHolder.dataset.prototype;
-let index = collectionHolder.dataset.index;
-collectionHolder.dataset.index ++;
-
-let newForm = prototype.replace(/__name__/g, index);
-let div = document.createElement("div");
-div.classList.add("ligne-item", "grid", "grid-cols-1", "md:grid-cols-4", "gap-4", "p-4", "border", "rounded-md", "shadow-sm", "bg-gray-100");
-div.innerHTML = newForm;
-
-let removeButton = document.createElement("button");
-removeButton.type = "button";
-removeButton.className = "remove-ligne bg-red-500 text-white px-3 py-1 rounded mt-2 hover:bg-red-600 col-span-1 md:col-span-4";
-removeButton.innerText = "❌ Supprimer la ligne";
-removeButton.addEventListener("click", function () {
-div.remove();
-recalcLignes();
-});
-div.appendChild(removeButton);
-collectionHolder.appendChild(div);
-
-div.querySelectorAll("input").forEach(function (input) {
-input.addEventListener("input", recalcLignes);
-});
-
-recalcLignes();
-});
-
-document.querySelectorAll(".remove-ligne").forEach(function (btn) {
-btn.addEventListener("click", function () {
-btn.closest(".ligne-item").remove();
-recalcLignes();
-});
-});
-
-collectionHolder.querySelectorAll("input").forEach(function (input) {
-input.addEventListener("input", recalcLignes);
-});
-
-recalcLignes();
-});
-	</script>
+</script>
 {% endblock %}

@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Facture;
+use App\Repository\SettingRepository;
 use Atgp\FacturX\Writer;
 use Atgp\FacturX\Utils\ProfileHandler;
 use Twig\Environment;
@@ -11,11 +12,56 @@ class FacturxService
 {
     private Environment $twig;
     private string $projectDir;
+    private SettingRepository $settingRepo;
 
-    public function __construct(Environment $twig, string $projectDir)
+    /**
+     * Mapping profil → GuidelineID XML et constante Writer.
+     */
+    private const PROFILE_MAP = [
+        'minimum'  => [
+            'guideline' => 'urn:factur-x.eu:1p0:minimum',
+            'writer'    => ProfileHandler::PROFILE_FACTURX_MINIMUM,
+        ],
+        'basicwl'  => [
+            'guideline' => 'urn:factur-x.eu:1p0:basicwl',
+            'writer'    => ProfileHandler::PROFILE_FACTURX_BASICWL,
+        ],
+        'basic'    => [
+            'guideline' => 'urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:basic',
+            'writer'    => ProfileHandler::PROFILE_FACTURX_BASIC,
+        ],
+        'en16931'  => [
+            'guideline' => 'urn:cen.eu:en16931:2017',
+            'writer'    => ProfileHandler::PROFILE_FACTURX_EN16931,
+        ],
+        'extended' => [
+            'guideline' => 'urn:cen.eu:en16931:2017#conformant#urn:factur-x.eu:1p0:extended',
+            'writer'    => ProfileHandler::PROFILE_FACTURX_EXTENDED,
+        ],
+    ];
+
+    public function __construct(Environment $twig, string $projectDir, SettingRepository $settingRepo)
     {
         $this->twig = $twig;
         $this->projectDir = rtrim($projectDir, '/');
+        $this->settingRepo = $settingRepo;
+    }
+
+    private function getActiveProfile(): string
+    {
+        return $this->settingRepo->get('facturx_profile', 'basic');
+    }
+
+    private function getGuidelineId(): string
+    {
+        $profile = $this->getActiveProfile();
+        return self::PROFILE_MAP[$profile]['guideline'] ?? self::PROFILE_MAP['basic']['guideline'];
+    }
+
+    private function getWriterProfile(): string
+    {
+        $profile = $this->getActiveProfile();
+        return self::PROFILE_MAP[$profile]['writer'] ?? self::PROFILE_MAP['basic']['writer'];
     }
 
     /**
@@ -25,7 +71,10 @@ class FacturxService
     {
         $dom = new \DOMDocument('1.0', 'UTF-8');
         $dom->formatOutput = true;
-        
+
+        // Profil actif — conditionne les éléments XML autorisés par le XSD
+        $activeProfile = $this->getActiveProfile();
+        $isExtendedProfile = in_array($activeProfile, ['en16931', 'extended'], true);
 
         // Root + namespaces
         $root = $dom->createElement('rsm:CrossIndustryInvoice');
@@ -38,7 +87,7 @@ class FacturxService
         // Context
         $context = $dom->createElement('rsm:ExchangedDocumentContext');
         $guideline = $dom->createElement('ram:GuidelineSpecifiedDocumentContextParameter');
-        $guideline->appendChild($dom->createElement('ram:ID', 'urn:cen.eu:en16931:2017'));
+        $guideline->appendChild($dom->createElement('ram:ID', $this->getGuidelineId()));
         $context->appendChild($guideline);
         $root->appendChild($context);
 
@@ -62,6 +111,23 @@ class FacturxService
             $note->appendChild($dom->createElement('ram:Content', $facture->getCommentaire()));
             $document->appendChild($note);
         }
+
+        // Nature de l'opération (OBL sept 2026) — subjectCode ABL = note commerciale
+        if ($facture->getNatureOperation()) {
+            $noteOp = $dom->createElement('ram:IncludedNote');
+            $noteOp->appendChild($dom->createElement('ram:Content', 'Nature de l\'opération : ' . $facture->getNatureOperation()));
+            $noteOp->appendChild($dom->createElement('ram:SubjectCode', 'ABL'));
+            $document->appendChild($noteOp);
+        }
+
+        // TVA sur les débits (OBL si applicable)
+        if ($facture->isTvaDebits()) {
+            $noteDebits = $dom->createElement('ram:IncludedNote');
+            $noteDebits->appendChild($dom->createElement('ram:Content', 'TVA acquittée sur les débits'));
+            $noteDebits->appendChild($dom->createElement('ram:SubjectCode', 'AAK'));
+            $document->appendChild($noteDebits);
+        }
+
         $root->appendChild($document);
 
         // SupplyChainTradeTransaction
@@ -96,7 +162,9 @@ class FacturxService
             $settlementLine = $dom->createElement('ram:SpecifiedLineTradeSettlement');
             $tax = $dom->createElement('ram:ApplicableTradeTax');
             $tax->appendChild($dom->createElement('ram:TypeCode', 'VAT'));
-            $tax->appendChild($dom->createElement('ram:CategoryCode', 'S'));
+            // BT-151 : catégorie TVA dynamique (S = standard, E = exonéré, Z = taux zéro…)
+            $lineCategoryCode = $ligne->getCategorieTva() ?: 'S';
+            $tax->appendChild($dom->createElement('ram:CategoryCode', $lineCategoryCode));
             $tax->appendChild($dom->createElement('ram:RateApplicablePercent', number_format($ligne->getTauxTva(), 2, '.', '')));
             $settlementLine->appendChild($tax);
 
@@ -114,8 +182,9 @@ class FacturxService
         // Seller
         $seller = $dom->createElement('ram:SellerTradeParty');
         $fournisseur = $facture->getFournisseur();
-        // Ordre XSD CII strict : Name → SpecifiedLegalOrganization → DefinedTradeContact
-        //                      → PostalTradeAddress → SpecifiedTaxRegistration
+        // Ordre XSD BASIC : Name → SpecifiedLegalOrganization → PostalTradeAddress
+        //                 → URIUniversalCommunication → SpecifiedTaxRegistration
+        // Ordre XSD EN16931 : idem + DefinedTradeContact entre LegalOrg et PostalAddress
         $seller->appendChild($dom->createElement('ram:Name', $fournisseur->getNom()));
 
         // SIRET → SpecifiedLegalOrganization (ISO 6523 schemeID 0009 = SIRET)
@@ -127,8 +196,8 @@ class FacturxService
             $seller->appendChild($legalOrg);
         }
 
-        // BT-43 : email du contact vendeur — doit précéder PostalTradeAddress (XSD)
-        if ($fournisseur->getEmail()) {
+        // BT-43 : DefinedTradeContact (email) — EN16931+ uniquement
+        if ($isExtendedProfile && $fournisseur->getEmail()) {
             $contact = $dom->createElement('ram:DefinedTradeContact');
             $emailNode = $dom->createElement('ram:EmailURIUniversalCommunication');
             $emailNode->appendChild($dom->createElement('ram:URIID', $fournisseur->getEmail()));
@@ -168,13 +237,36 @@ class FacturxService
         // Buyer
         $acheteur = $facture->getAcheteur();
         $buyer = $dom->createElement('ram:BuyerTradeParty');
+        // Ordre XSD CII : Name → SpecifiedLegalOrganization → PostalTradeAddress → SpecifiedTaxRegistration
         $buyer->appendChild($dom->createElement('ram:Name', $acheteur->getNom()));
+
+        // BT-47 : SIREN acheteur (OBL sept 2026) — ISO 6523 schemeID 0002 = SIREN
+        $buyerSiren = $acheteur->getSiren()
+            ?: ($acheteur->getSiret() ? substr(preg_replace('/\D/', '', $acheteur->getSiret()), 0, 9) : null);
+        if ($buyerSiren) {
+            $buyerLegalOrg = $dom->createElement('ram:SpecifiedLegalOrganization');
+            $buyerLegalId  = $dom->createElement('ram:ID', $buyerSiren);
+            $buyerLegalId->setAttribute('schemeID', '0002');
+            $buyerLegalOrg->appendChild($buyerLegalId);
+            $buyer->appendChild($buyerLegalOrg);
+        }
+
         $buyerAddr = $dom->createElement('ram:PostalTradeAddress');
         if ($acheteur->getCodePostal()) $buyerAddr->appendChild($dom->createElement('ram:PostcodeCode', $acheteur->getCodePostal()));
         if ($acheteur->getAdresse()) $buyerAddr->appendChild($dom->createElement('ram:LineOne', $acheteur->getAdresse()));
         if ($acheteur->getVille()) $buyerAddr->appendChild($dom->createElement('ram:CityName', $acheteur->getVille()));
         $buyerAddr->appendChild($dom->createElement('ram:CountryID', $acheteur->getCodePays() ?: 'FR'));
         $buyer->appendChild($buyerAddr);
+
+        // BT-48 : N° TVA intracommunautaire acheteur (Recommandé)
+        if ($acheteur->getNumeroTva()) {
+            $buyerTaxReg = $dom->createElement('ram:SpecifiedTaxRegistration');
+            $buyerTaxId  = $dom->createElement('ram:ID', $acheteur->getNumeroTva());
+            $buyerTaxId->setAttribute('schemeID', 'VA');
+            $buyerTaxReg->appendChild($buyerTaxId);
+            $buyer->appendChild($buyerTaxReg);
+        }
+
         $agreement->appendChild($buyer);
 
         // BT-13 : référence de commande acheteur
@@ -189,6 +281,25 @@ class FacturxService
         // === (3) Livraison — toujours rempli (PEPPOL-R008 interdit les éléments vides)
         //         Si aucune date de livraison, on utilise la date de facture (pratique standard)
         $delivery         = $dom->createElement('ram:ApplicableHeaderTradeDelivery');
+
+        // BG-13 : Adresse de livraison (OBL sept 2026 si différente de l'adresse acheteur)
+        if ($facture->getLivraisonAdresse() || $facture->getLivraisonVille()) {
+            $shipTo = $dom->createElement('ram:ShipToTradeParty');
+            $shipToAddr = $dom->createElement('ram:PostalTradeAddress');
+            if ($facture->getLivraisonCodePostal()) {
+                $shipToAddr->appendChild($dom->createElement('ram:PostcodeCode', $facture->getLivraisonCodePostal()));
+            }
+            if ($facture->getLivraisonAdresse()) {
+                $shipToAddr->appendChild($dom->createElement('ram:LineOne', $facture->getLivraisonAdresse()));
+            }
+            if ($facture->getLivraisonVille()) {
+                $shipToAddr->appendChild($dom->createElement('ram:CityName', $facture->getLivraisonVille()));
+            }
+            $shipToAddr->appendChild($dom->createElement('ram:CountryID', $facture->getLivraisonCodePays() ?: 'FR'));
+            $shipTo->appendChild($shipToAddr);
+            $delivery->appendChild($shipTo);
+        }
+
         $effectiveDelivery = $facture->getDateLivraison() instanceof \DateTimeInterface
             ? $facture->getDateLivraison()
             : $facture->getDateFacture();
@@ -207,75 +318,110 @@ class FacturxService
         $devise = $facture->getDevise() ?: 'EUR';
         $settlement->appendChild($dom->createElement('ram:InvoiceCurrencyCode', $devise));
 
-        // === Moyens de paiement (virement par défaut ou ceux de la facture) ===
+        // === Moyens de paiement ===
+        // BR-CO-27 : chaque SpecifiedTradeSettlementPaymentMeans DOIT contenir
+        //            soit un IBANID soit un ProprietaryID dans PayeePartyCreditorFinancialAccount
+        // Ordre XSD strict : IBANID → AccountName → ProprietaryID
+        // AccountName et BIC ne sont autorisés qu'à partir du profil EN16931+
+        // Éléments conditionnels selon le profil XSD actif :
+        // BASIC : TypeCode → (DebtorAccount) → (CreditorAccount[IBANID|ProprietaryID])
+        // EN16931+ : TypeCode → Information → (FinancialCard) → (DebtorAccount)
+        //          → (CreditorAccount[IBANID, AccountName, ProprietaryID]) → (CreditorInstitution[BICID])
         if ($facture->getPaymentMeans() && count($facture->getPaymentMeans()) > 0) {
             foreach ($facture->getPaymentMeans() as $paymentMean) {
                 $pm = $dom->createElement('ram:SpecifiedTradeSettlementPaymentMeans');
                 $pm->appendChild($dom->createElement('ram:TypeCode', $paymentMean->getCode() ?: '42'));
-                $pm->appendChild($dom->createElement('ram:Information', $paymentMean->getInformation() ?: 'Paiement par virement bancaire'));
+                // Information : EN16931+ uniquement, doit suivre TypeCode
+                if ($isExtendedProfile) {
+                    $pm->appendChild($dom->createElement('ram:Information', $paymentMean->getInformation() ?: 'Paiement'));
+                }
 
+                // Compte financier — ordre XSD : IBANID → AccountName → ProprietaryID
                 $account = $dom->createElement('ram:PayeePartyCreditorFinancialAccount');
-                $iban = $dom->createElement('ram:IBANID', $paymentMean->getInformation() ?: 'FR7630006000011234567890189');
-                $account->appendChild($iban);
-                $account->appendChild($dom->createElement('ram:AccountName', $facture->getFournisseur()->getNom()));
+                if ($paymentMean->getIban()) {
+                    $account->appendChild($dom->createElement('ram:IBANID', $paymentMean->getIban()));
+                    if ($isExtendedProfile) {
+                        $account->appendChild($dom->createElement('ram:AccountName', $facture->getFournisseur()->getNom()));
+                    }
+                } else {
+                    if ($isExtendedProfile) {
+                        $account->appendChild($dom->createElement('ram:AccountName', $facture->getFournisseur()->getNom()));
+                    }
+                    $account->appendChild($dom->createElement('ram:ProprietaryID', $paymentMean->getCode() ?: 'NA'));
+                }
                 $pm->appendChild($account);
 
-                $bank = $dom->createElement('ram:PayeeSpecifiedCreditorFinancialInstitution');
-                $bic = $dom->createElement('ram:BICID', 'AGRIFRPPXXX');
-                $bank->appendChild($bic);
-                // $bank->appendChild($dom->createElement('ram:Name', 'Crédit Agricole'));
-                // $pm->appendChild($bank);
+                // BIC : EN16931+ uniquement
+                if ($isExtendedProfile && $paymentMean->getBic()) {
+                    $bank = $dom->createElement('ram:PayeeSpecifiedCreditorFinancialInstitution');
+                    $bank->appendChild($dom->createElement('ram:BICID', $paymentMean->getBic()));
+                    $pm->appendChild($bank);
+                }
 
                 $settlement->appendChild($pm);
             }
         } else {
-            // Paiement par défaut : virement bancaire Oroya
             $pm = $dom->createElement('ram:SpecifiedTradeSettlementPaymentMeans');
             $pm->appendChild($dom->createElement('ram:TypeCode', '42'));
-            $pm->appendChild($dom->createElement('ram:Information', 'Paiement par virement bancaire'));
+            if ($isExtendedProfile) {
+                $pm->appendChild($dom->createElement('ram:Information', 'Paiement par virement bancaire'));
+            }
 
             $account = $dom->createElement('ram:PayeePartyCreditorFinancialAccount');
-            $iban = $dom->createElement('ram:IBANID', 'FR7630006000011234567890189');
-            $account->appendChild($iban);
-            $account->appendChild($dom->createElement('ram:AccountName', 'Oroya'));
+            if ($isExtendedProfile) {
+                $account->appendChild($dom->createElement('ram:AccountName', $facture->getFournisseur()->getNom()));
+            }
+            $account->appendChild($dom->createElement('ram:ProprietaryID', 'VIREMENT'));
             $pm->appendChild($account);
-
-            $bank = $dom->createElement('ram:PayeeSpecifiedCreditorFinancialInstitution');
-            $bic = $dom->createElement('ram:BICID', 'AGRIFRPPXXX');
-            $bank->appendChild($bic);
-            // $bank->appendChild($dom->createElement('ram:Name', 'Crédit Agricole'));
-            // $pm->appendChild($bank);
 
             $settlement->appendChild($pm);
         }
 
 
 
-        // === Taxes document (groupées par taux) ===   
+        // === Taxes document (groupées par taux + catégorie — BG-23) ===
+        // Clé composite taux+catégorie pour séparer S@20% / E@0% / Z@0% etc.
         $taxGroups = [];
         foreach ($facture->getLignes() as $ligne) {
-            $r = round($ligne->getTauxTva(), 2);
-            if (!isset($taxGroups[$r])) $taxGroups[$r] = ['base' => 0.0];
-            $taxGroups[$r]['base'] += $ligne->getMontantHt();
+            $r = number_format(round($ligne->getTauxTva(), 2), 2, '.', '');
+            $cat = $ligne->getCategorieTva() ?: 'S';
+            $key = $cat . '@' . $r;
+            if (!isset($taxGroups[$key])) {
+                $taxGroups[$key] = [
+                    'base' => 0.0,
+                    'rate' => (float) $r,
+                    'category' => $cat,
+                    'exemptionReason' => $ligne->getMotifExoneration(),
+                ];
+            }
+            $taxGroups[$key]['base'] += $ligne->getMontantHt();
         }
         foreach ($facture->getAllowanceCharges() as $ac) {
-            $rate = round($ac->getTaxRate(), 2);
-            if (!isset($taxGroups[$rate])) $taxGroups[$rate] = ['base' => 0.0];
-            $taxGroups[$rate]['base'] += $ac->getIsCharge() ? $ac->getAmount() : -$ac->getAmount();
+            $rate = number_format(round($ac->getTaxRate(), 2), 2, '.', '');
+            $key = 'S@' . $rate;
+            if (!isset($taxGroups[$key])) {
+                $taxGroups[$key] = ['base' => 0.0, 'rate' => (float) $rate, 'category' => 'S', 'exemptionReason' => null];
+            }
+            $taxGroups[$key]['base'] += $ac->getIsCharge() ? $ac->getAmount() : -$ac->getAmount();
         }
 
         $totalTax = 0.0;
-        foreach ($taxGroups as $rate => $data) {
+        foreach ($taxGroups as $data) {
             $base = round($data['base'], 2);
-            $calc = round($base * $rate / 100.0, 2);
+            $calc = round($base * $data['rate'] / 100.0, 2);
             $totalTax += $calc;
 
             $taxNode = $dom->createElement('ram:ApplicableTradeTax');
             $taxNode->appendChild($dom->createElement('ram:CalculatedAmount', number_format($calc, 2, '.', '')));
             $taxNode->appendChild($dom->createElement('ram:TypeCode', 'VAT'));
+            // BT-120/121 : motif d'exonération (OBL si catégorie E)
+            if ($data['category'] === 'E' && $data['exemptionReason']) {
+                $taxNode->appendChild($dom->createElement('ram:ExemptionReason', $data['exemptionReason']));
+            }
             $taxNode->appendChild($dom->createElement('ram:BasisAmount', number_format($base, 2, '.', '')));
-            $taxNode->appendChild($dom->createElement('ram:CategoryCode', 'S'));
-            $taxNode->appendChild($dom->createElement('ram:RateApplicablePercent', number_format($rate, 2, '.', '')));
+            // BT-118 : code catégorie TVA dynamique
+            $taxNode->appendChild($dom->createElement('ram:CategoryCode', $data['category']));
+            $taxNode->appendChild($dom->createElement('ram:RateApplicablePercent', number_format($data['rate'], 2, '.', '')));
             $settlement->appendChild($taxNode);
         }
 
@@ -388,7 +534,7 @@ class FacturxService
         return $writer->generate(
             $pdfContent,
             $xmlContent,
-            ProfileHandler::PROFILE_FACTURX_EN16931,
+            $this->getWriterProfile(),
             true,
             [],
             true

@@ -61,6 +61,24 @@ class Facture
     #[ORM\Column(type: "string", length: 50, nullable: true)]
     private ?string $commande_acheteur = null;
 
+    #[ORM\Column(type: "string", length: 20)]
+    private string $nature_operation;
+
+    #[ORM\Column(type: "boolean", options: ["default" => false])]
+    private bool $tva_debits = false;
+
+    #[ORM\Column(type: "string", length: 255, nullable: true)]
+    private ?string $livraison_adresse = null;
+
+    #[ORM\Column(type: "string", length: 100, nullable: true)]
+    private ?string $livraison_ville = null;
+
+    #[ORM\Column(type: "string", length: 20, nullable: true)]
+    private ?string $livraison_code_postal = null;
+
+    #[ORM\Column(type: "string", length: 2, nullable: true)]
+    private ?string $livraison_code_pays = null;
+
     #[ORM\OneToMany(mappedBy: "facture", targetEntity: FactureAllowanceCharge::class)]
     private Collection $allowanceCharges;
 
@@ -216,6 +234,19 @@ class Facture
         $this->commande_acheteur = $commande_acheteur;
         return $this;
     }
+
+    public function getNatureOperation(): string { return $this->nature_operation; }
+    public function setNatureOperation(string $nature_operation): self { $this->nature_operation = $nature_operation; return $this; }
+    public function isTvaDebits(): bool { return $this->tva_debits; }
+    public function setTvaDebits(bool $tva_debits): self { $this->tva_debits = $tva_debits; return $this; }
+    public function getLivraisonAdresse(): ?string { return $this->livraison_adresse; }
+    public function setLivraisonAdresse(?string $livraison_adresse): self { $this->livraison_adresse = $livraison_adresse; return $this; }
+    public function getLivraisonVille(): ?string { return $this->livraison_ville; }
+    public function setLivraisonVille(?string $livraison_ville): self { $this->livraison_ville = $livraison_ville; return $this; }
+    public function getLivraisonCodePostal(): ?string { return $this->livraison_code_postal; }
+    public function setLivraisonCodePostal(?string $livraison_code_postal): self { $this->livraison_code_postal = $livraison_code_postal; return $this; }
+    public function getLivraisonCodePays(): ?string { return $this->livraison_code_pays; }
+    public function setLivraisonCodePays(?string $livraison_code_pays): self { $this->livraison_code_pays = $livraison_code_pays; return $this; }
 
     public function getAllowanceCharges(): Collection
     {

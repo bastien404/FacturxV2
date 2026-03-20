@@ -1,0 +1,73 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Client : {{ client.nom }}{% endblock %}
+{% block nav_client %}active{% endblock %}
+
+{% block body %}
+    <div class="flex items-center justify-between mb-8" data-aos="fade-down">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">{{ client.nom }}</h1>
+            <p class="text-sm text-slate-400 mt-1">Détails du client/fournisseur</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{{ path('app_client_index') }}" class="btn btn-ghost">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                Retour
+            </a>
+            <a href="{{ path('app_client_edit', {'id': client.id}) }}" class="btn btn-primary" style="background-color: #f59e0b; border-color: #f59e0b;">
+                <i data-lucide="pencil" class="w-5 h-5"></i>
+                Modifier
+            </a>
+            {{ include('client/_delete_form.html.twig') }}
+        </div>
+    </div>
+
+    <div class="glass-card p-8 max-w-4xl mx-auto" data-aos="fade-up">
+        <h3 class="text-lg font-semibold text-slate-700 mb-6 border-b pb-4">Informations Principales</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+            <div>
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">Raison Sociale</span>
+                <span class="text-slate-800 font-medium">{{ client.nom }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">Email</span>
+                <span class="text-slate-800">{{ client.email|default('-') }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">Téléphone</span>
+                <span class="text-slate-800">{{ client.telephone|default('-') }}</span>
+            </div>
+        </div>
+
+        <h3 class="text-lg font-semibold text-slate-700 mt-10 mb-6 border-b pb-4">Informations Fiscales & Factur-X</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+            <div>
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">SIREN (Obligatoire)</span>
+                {% if client.siren %}
+                    <span class="badge bg-indigo-50 text-indigo-600">{{ client.siren }}</span>
+                {% else %}
+                    <span class="badge bg-red-50 text-red-600">Manquant</span>
+                {% endif %}
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">SIRET</span>
+                <span class="text-slate-800">{{ client.siret|default('-') }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">TVA Intracommunautaire</span>
+                <span class="text-slate-800">{{ client.numeroTva|default('-') }}</span>
+            </div>
+        </div>
+
+        <h3 class="text-lg font-semibold text-slate-700 mt-10 mb-6 border-b pb-4">Adresse Postale</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+            <div class="col-span-1 md:col-span-2">
+                <span class="block text-xs font-semibold uppercase text-slate-400 mb-1">Adresse complète</span>
+                <span class="text-slate-800">{{ client.adresse }}<br>{{ client.codePostal }} {{ client.ville }}<br>{{ client.codePays }}</span>
+            </div>
+        </div>
+    </div>
+{% endblock %}

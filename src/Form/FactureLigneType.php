@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\FactureLigne;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
@@ -29,9 +30,10 @@ class FactureLigneType extends AbstractType
                 'attr' => ['step' => 0.01]
             ])
             ->add('unite', TextType::class, [
-                'label' => 'Unité',
-                'required' => false,
-                'attr' => ['placeholder' => 'Ex: pièce, kg']
+                'label' => 'Unité Factur-X',
+                'required' => true,
+                'attr' => ['placeholder' => 'Ex: H87, C62, LTR...'],
+                'help' => 'Obligatoire (C62 = pièce, H87 = pièce/quantité, LTR = litre)',
             ])
             ->add('prixUnitaireHT', MoneyType::class, [
                 'currency' => 'EUR',
@@ -41,6 +43,24 @@ class FactureLigneType extends AbstractType
             ->add('tauxTVA', NumberType::class, [
                 'label' => 'TVA (%)',
                 'attr' => ['step' => 0.01]
+            ])
+            ->add('categorieTva', ChoiceType::class, [
+                'label' => 'Catégorie TVA',
+                'choices' => [
+                    'S - Standard' => 'S',
+                    'E - Exonéré' => 'E',
+                    'Z - Taux zéro' => 'Z',
+                    'G - Export hors UE' => 'G',
+                    'K - Intra-communautaire' => 'K',
+                    'O - Hors champ TVA' => 'O',
+                ],
+                'data' => 'S',
+                'attr' => ['class' => 'form-control'],
+            ])
+            ->add('motifExoneration', TextType::class, [
+                'label' => 'Motif d\'exonération (si cat. E)',
+                'required' => false,
+                'attr' => ['placeholder' => 'Ex: TVA non applicable, art. 261-4-1° CGI'],
             ])
             ->add('montantHT', MoneyType::class, [
                 'currency' => 'EUR',
